@@ -29,7 +29,7 @@ while [ "$1" != "" ]; do
     esac
     shift
 done
-base_dir="/data/users/hongleir"
+base_dir="/data/users/hongleir/prediction_by_k"
 data_dir="/pub/hongleir/data"
 sicer_path="/pub/hongleir/SICER_V1.1/SICER"
 if [ $server -ne 1 ]; then
