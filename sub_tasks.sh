@@ -18,7 +18,7 @@ while [ "$1" != "" ]; do
         -i | --input_file )     shift
                                 input_file=$1
                                 ;;
-        -s | --server )     shift
+        -s | --server )         shift
                                 server=$1
                                 ;;
         -h | --help )           usage
@@ -36,7 +36,7 @@ if [ $server -ne 1 ]; then
     # With control
     base_dir="/Users/Ren/PycharmProjects/prediction_by_k"
     data_dir="$base_dir/data"
-    sicer_path="/Users/Ren/PycharmProjects/prediction_by_k/SICER_V1.1/SICER"
+    sicer_path="$base_dir/SICER_V1.1/SICER"
 fi
 
 peak_dir="$data_dir/ChIP-Seq_Peaks"
