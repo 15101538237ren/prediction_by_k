@@ -1,6 +1,6 @@
 #!/bin/bash
 #$ -N PEAK_CALLING
-#$ -q pub64,ionode,rxn
+#$ -q pub*,ionode,rxn
 #$ -m beas
 
 function usage {
