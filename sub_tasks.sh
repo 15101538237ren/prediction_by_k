@@ -52,9 +52,9 @@ while IFS=$'\t' read -r -a cols
 	broad_peak=${cols[3]}
 	if [ $control -eq 1 ]; then
 		# With control
-		qsub "$dir_path/PEAK_CALLING.sh" -s "$sicer_path" -d "$dir_path" -c 1 -i "$chip_seq_data_dir" -o "$peak_dir" -a "$bed_file" -b "$control_file" -p $broad_peak
+		sh "$dir_path/PEAK_CALLING.sh" -s "$sicer_path" -d "$dir_path" -c 1 -i "$chip_seq_data_dir" -o "$peak_dir" -a "$bed_file" -b "$control_file" -p $broad_peak
 	else
 		# Without control data
-		qsub "$dir_path/PEAK_CALLING.sh" -s "$sicer_path" -d "$dir_path" -c 0 -i "$chip_seq_data_dir" -o "$peak_dir" -a "$bed_file" -p $broad_peak
+		sh "$dir_path/PEAK_CALLING.sh" -s "$sicer_path" -d "$dir_path" -c 0 -i "$chip_seq_data_dir" -o "$peak_dir" -a "$bed_file" -p $broad_peak
 	fi
 done < "$input_file"
