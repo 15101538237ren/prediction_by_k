@@ -7,22 +7,22 @@ module load bedtools/2.25.0
 module load bedops/2.4.14
 
 indir=/pub/hongleir/data/ChIP-Seq_Peaks
-merged_filtered=$indir/MERGED'_FILTERED_BY_METHYLATION.bed'
-out_file=$indir/MERGED'.bed'
+K_dir=prediction_by_k/data
+
 chopped_file=$indir/MERGED'_200bp.bed'
 merged_chopped=$indir/MERGED'_Chopped.bed'
 
-cat $indir/*island'.bed'| sort -k 1,1 -k2,2n | bedtools merge> $out_file
-bedops --chop 200 $out_file >$chopped_file
-bedtools intersect -a prediction_by_k/data/K.bed -b $chopped_file | sort -k 1,1 -k2,2n>prediction_by_k/data/K_filtered.bed
-bedtools intersect -a $chopped_file -b prediction_by_k/data/K_filtered.bed -wa | sort -k 1,1 -k2,2n| bedtools merge>$merged_filtered
-bedops --chop 200 $merged_filtered >$merged_chopped
-rm $out_file $chopped_file
+# Chip-Seq Data data Processing
 
-bedtools map -a $merged_chopped -b prediction_by_k/data/K_filtered.bed -c 4 -o mean> prediction_by_k/data/K_mean.bed
+cat $indir/*island'.bed'| sort -k 1,1 -k2,2n | bedtools merge>$indir/MERGED'.bed'
+bedops --chop 200 $indir/MERGED'.bed' >$chopped_file
+bedtools intersect -a $K_dir/K.bed -b $chopped_file | sort -k 1,1 -k2,2n>$K_dir/K_filtered.bed
+bedtools intersect -a $chopped_file -b $K_dir/K_filtered.bed -wa | sort -k 1,1 -k2,2n| bedtools merge>$indir/MERGED'_FILTERED_BY_METHYLATION.bed'
+bedops --chop 200 $indir/MERGED'_FILTERED_BY_METHYLATION.bed' >$merged_chopped
+rm $indir/MERGED'.bed' $chopped_file
 
-indir=/pub/hongleir/data/ChIP-Seq_Peaks
-merged_filtered=$indir/MERGED'_FILTERED_BY_METHYLATION.bed'
+bedtools map -a $merged_chopped -b $K_dir/K_filtered.bed -c 4 -o mean> $K_dir/K_mean.bed
+
 cd $indir
 
 for f in *_island.bed
@@ -40,6 +40,7 @@ methy_data_dir=/pub/hongleir/data/Methy-data
 cd $methy_data_dir
 mkdir -p output
 
+# Methylation BED data Processing
 for f in *.bed
 do
     filename=${f%%\.*}
