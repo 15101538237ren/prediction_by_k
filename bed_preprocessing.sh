@@ -7,7 +7,7 @@ module load bedtools/2.25.0
 module load bedops/2.4.14
 
 indir=/pub/hongleir/data/ChIP-Seq_Peaks
-K_dir=prediction_by_k/data
+K_dir=/pub/hongleir/prediction_by_k/data
 
 chopped_file=$indir/MERGED'_200bp.bed'
 merged_chopped=$indir/MERGED'_Chopped.bed'
@@ -36,18 +36,35 @@ do
   echo $filename
 done
 
-methy_data_dir=/pub/hongleir/data/Methy-data
-cd $methy_data_dir
-mkdir -p output
+
+cd $indir
+DATA_FOR_LEARNING='/pub/hongleir/prediction_by_k/data/data_for_learning'
+mkdir -p $DATA_FOR_LEARNING
+for f in *'_binarized.bed'
+do
+  filename=${f%%_*}
+  cp $f $DATA_FOR_LEARNING
+  mv $DATA_FOR_LEARNING/$f $DATA_FOR_LEARNING/$filename'.bed'
+  echo $filename
+done
 
 # Methylation BED data Processing
+methy_data_dir=/pub/hongleir/data/Methy-data
+cd $methy_data_dir
+
+mkdir -p output
 for f in *.bed
 do
     filename=${f%%\.*}
-    bedtools intersect -a $f -b $merged_chopped | sort -k 1,1 -k2,2n >$filename'.tmp'
-    bedtools map -a $merged_chopped -b $filename'.tmp' -c 5 -o mean>output/$filename'_mean.bed'
-    rm -f $filename'.tmp'
+    #bedtools intersect -a $f -b $merged_chopped | sort -k 1,1 -k2,2n >$filename'.tmp'
+    #bedtools map -a $merged_chopped -b $filename'.tmp' -c 5 -o mean>output/$filename'_mean.bed'
+    #rm -f $filename'.tmp'
+    #cp output/$filename'_mean.bed' $DATA_FOR_LEARNING
+    mv $DATA_FOR_LEARNING/$filename'_mean.bed' $DATA_FOR_LEARNING/$filename'.bed'
     echo $filename
 done
 
+cp $K_dir/K_mean.bed $DATA_FOR_LEARNING
+
+tar -jcvf $DATA_FOR_LEARNING'.tar.bz2' $DATA_FOR_LEARNING
 module purge
