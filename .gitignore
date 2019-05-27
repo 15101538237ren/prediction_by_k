@@ -1,5 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+DATA_SET
+DATA
+SICER_V1.1
 *.py[cod]
 *$py.class
 
