@@ -2,12 +2,12 @@
 import pandas as pd
 import numpy as np
 from itertools import combinations
-import os
+import os, re
 
 TARGET_COLUMN_INDEX_OF_BED_FILE = 3
 modification_names = ["H3K4me1", "H3K4me3", "H3K9Me3", "H3K27ac", "H3K27Me3", "H3K36me3", "Methylation"]
 differentiated_cell_types = ["dEC", "dME", "dEN"]
-def read_tab_seperated_file_and_get_target_column(input_file_path, target_col_index, start_line= 1, sep="\t",line_end = "\n"):
+def read_tab_seperated_file_and_get_target_column(input_file_path, target_col_index, target_data_type=float, start_line= 1, sep="\s+",line_end = "\n"):
     """
     OBTAIN THE VALUES OF A TARGET COLUMN IN TSV FILE
     :param target_col_index: the target column index, starting from 0
@@ -24,8 +24,8 @@ def read_tab_seperated_file_and_get_target_column(input_file_path, target_col_in
         while line:
             line_counter += 1
             if line_counter >= start_line:
-                line_contents = line.split(sep)
-                led = line_contents[target_col_index].strip(line_end)
+                line_contents = re.split(sep, line.strip(line_end))
+                led = target_data_type(line_contents[target_col_index])
                 ret_value_list.append(led)
             line = input_file.readline()
     return ret_value_list
@@ -38,7 +38,7 @@ def combine_whole_dataset(region='GENOME'):
     k_data = read_tab_seperated_file_and_get_target_column(os.path.join(dataset_dir, 'K_mean.bed'),
                                                                TARGET_COLUMN_INDEX_OF_BED_FILE)
 
-    df = pd.read_csv('DATA/DATA_LABEL.txt', sep='\t', index_col=0)
+    df = pd.read_csv('DATA/DATA_LABEL.txt', sep='\s+', index_col=0)
 
     for idx in df.index:
         idx_s = str(idx)
@@ -46,6 +46,7 @@ def combine_whole_dataset(region='GENOME'):
         for col in df.columns:
             histone_and_methy_data[idx_s][col] = {}
             histone_and_methy_data[idx_s][col]['NAME'] = df.loc[idx, col]
+            print df.loc[idx, col]
             histone_and_methy_data[idx_s][col]['DATA'] = read_tab_seperated_file_and_get_target_column(os.path.join(dataset_dir, df.loc[idx, col] + '.bed'), TARGET_COLUMN_INDEX_OF_BED_FILE)
     return [k_data, histone_and_methy_data]
 
