@@ -152,8 +152,8 @@ def extract_target_data_by_features(differentiated_cell_type, x_features, y_feat
         y_data[:, idx] = diff_cell_data[feature]['DATA']
 
     # Addressing the imbalanced data problem
-    x_data, y_data = sub_sampling(x_data, y_data, y_data.flatten() != 0)
     x_data, y_data = sub_sampling(x_data, y_data, np.logical_xor(x_data[:, 0], y_data[:, 0]))
+    x_data, y_data = sub_sampling(x_data, y_data, y_data.flatten() != 0)
 
     xor_indexs = np.logical_xor(x_data[:, 0], y_data[:, 0])
 
@@ -161,7 +161,7 @@ def extract_target_data_by_features(differentiated_cell_type, x_features, y_feat
 
     xor_indexs = y_data.flatten() != 0
 
-    print "ratio of x post now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs))
+    print "ratio of y post now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs))
 
     if window_sz > 1:
         return sliding_window_of_data(x_data, y_data, window_sz)
