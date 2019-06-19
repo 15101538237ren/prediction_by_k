@@ -1,5 +1,5 @@
 #!/bin/bash
-#$ -N PEAK_CALLING
+#$ -N Calc_methy_ratio
 #$ -q pub*,ionode,rxn
 #$ -m beas
 
@@ -8,9 +8,12 @@
 # use REPLI_BS_AND_RRBS.py: call the filter_bed_by_methylation_level($bulk_hesc_methy_data, filtered_bulk_hesc_methy_data)
 
 # 2. packaging repli-rrbs data
-packaging_dir=/pub/hongleir/repli_rrbs_bed
 
-mkdir /pub/hongleir/repli_rrbs_bed
+cp /pub/hongleir/data/Methy-data/GSM916051.bed bulk_rrbs/
+
+packaging_dir=/pub/hongleir/DATA_FOR_ANALYSIS/repli_rrbs
+
+mkdir $packaging_dir
 cd $packaging_dir
 
 cp /pub/hongleir/DATA_FOR_ANALYSIS/P1*/results/bismark_methylation_calls/methylation_coverage/P1*_READ1_val_1_bismark_bt2_pe.bismark.cov.gz .
