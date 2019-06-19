@@ -1,0 +1,14 @@
+#!/bin/bash
+#$ -N METHYL_PIPELINE
+#$ -q rxn
+#$ -pe openmp 16-64
+#$ -R y
+#$ -m beas
+
+module load java/11.0.2
+module load python/2.7.15
+module load singularity/3.1.0
+
+cd /pub/hongleir/DATA_FOR_ANALYSIS/P11
+nextflow run nf-core/methylseq -c methylseq.config -with-singularity --comprehensive
+

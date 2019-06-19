@@ -23,9 +23,9 @@ from sklearn.neural_network import MLPClassifier
 TARGET_COLUMN_INDEX_OF_BED_FILE = 3
 TEST_RATIO = 0.33
 RANDOM_STATE = 42
-WINDOW_SZS = [1]#, 3, 5, 7, 11, 23, 51
-modification_names = ["H3K4me1", "H3K4me3", "H3K9Me3"]#, , "H3K27ac", "H3K27Me3", "H3K36me3", "Methylation"
-differentiated_cell_types = ["dEC", "dME", "dEN"]
+WINDOW_SZS = [1]#1, 3, 5,7, 11, 23, 51,
+modification_names = ["H3K4me1", "H3K4me3", "H3K9Me3", "H3K27ac", "H3K27Me3", "H3K36me3","Methylation"]#,,
+differentiated_cell_types = ["dEC"]#, "dME", "dEN"
 SCORING = ['f1_weighted']#'accuracy', 'precision', 'recall', ,'roc_auc'
 SCORING_KEYS_FOR_PRINT = ['test_f1_weighted']#,'test_accuracy','test_precision', 'test_recall', 'test_f1_weighted','test_roc_auc'
 
@@ -45,8 +45,6 @@ def read_tab_seperated_file_and_get_target_column(input_file_path, target_col_in
     with open(input_file_path, "r") as input_file:
         line = input_file.readline()
         while line:
-            if line_counter > 400000:
-                break
             line_counter += 1
             if line_counter >= start_line:
                 line_contents = re.split(sep, line.strip(line_end))
@@ -88,8 +86,9 @@ def generate_the_combination_of_features():
     x_features = [] # the input feature for machine learning model
     y_features = []
     for target_modification_name in modification_names:
+
         left_features = [feature for feature in modification_names if feature != target_modification_name]
-        for comb_feature_sz in range(1, len(left_features)+ 1):
+        for comb_feature_sz in range(0, 0):#len(left_features)
             comb_features = list(combinations(left_features, comb_feature_sz)) if comb_feature_sz else []
 
             if comb_feature_sz:
@@ -102,6 +101,9 @@ def generate_the_combination_of_features():
             else:
                 x_features.append([target_modification_name])
                 y_features.append([target_modification_name])
+
+        x_features.append(["Methylation"])
+        y_features.append([target_modification_name])
     return [x_features, y_features]
 
 def sliding_window_of_data(x_data, y_data , window_sz):
@@ -116,17 +118,18 @@ def sliding_window_of_data(x_data, y_data , window_sz):
         sliced_y_data[i] = y_data[i + mid]
     return [sliced_x_data, sliced_y_data]
 
-original_dataset = combine_whole_dataset(region='GENOME', load=True)
+original_dataset = combine_whole_dataset(region='GENOME_CHOPPED', load=True)
 k_data, histone_and_methy_data = original_dataset
 hESC_data = histone_and_methy_data['hESC']
-def sub_sampling(x_data, y_data, target_indexs):
+
+def sub_sampling(x_data, y_data, target_indexs, size = 1.0):
     x_under_represented = x_data[target_indexs]
     y_under_represented = y_data[target_indexs]
 
     x_over_represented_data = x_data[~target_indexs]
     y_over_represented_data = y_data[~target_indexs]
 
-    selected_index = np.random.choice(len(x_over_represented_data), len(x_under_represented))
+    selected_index = np.random.choice(len(x_over_represented_data), int(size * len(x_under_represented)))
 
     x_sampled_from_over_represented_data = x_over_represented_data[selected_index]
     y_sampled_from_over_represented_data = y_over_represented_data[selected_index]
@@ -136,7 +139,6 @@ def sub_sampling(x_data, y_data, target_indexs):
     del x_under_represented, y_under_represented, x_over_represented_data, y_over_represented_data, x_sampled_from_over_represented_data, y_sampled_from_over_represented_data, selected_index
     x_data, y_data = shuffle(x_data, y_data, random_state=RANDOM_STATE)
     return [x_data, y_data]
-
 
 def extract_target_data_by_features(differentiated_cell_type, x_features, y_features, include_k, window_sz):
     diff_cell_data = histone_and_methy_data[differentiated_cell_type]
@@ -152,16 +154,16 @@ def extract_target_data_by_features(differentiated_cell_type, x_features, y_feat
         y_data[:, idx] = diff_cell_data[feature]['DATA']
 
     # Addressing the imbalanced data problem
-    x_data, y_data = sub_sampling(x_data, y_data, np.logical_xor(x_data[:, 0], y_data[:, 0]))
-    x_data, y_data = sub_sampling(x_data, y_data, y_data.flatten() != 0)
+    x_data, y_data = sub_sampling(x_data, y_data, np.logical_xor(x_data[:, 0], y_data[:, 0]), size = 1.5)
+    x_data, y_data = sub_sampling(x_data, y_data, y_data.flatten() != 0, size = 1.0)
 
-    xor_indexs = np.logical_xor(x_data[:, 0], y_data[:, 0])
-
-    print "ratio of changed now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs))
-
-    xor_indexs = y_data.flatten() != 0
-
-    print "ratio of y post now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs))
+    # xor_indexs = np.logical_xor(x_data[:, 0], y_data[:, 0])
+    #
+    # print "ratio of changed now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs))
+    #
+    # xor_indexs = y_data.flatten() != 0
+    #
+    # print "ratio of y post now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs))
 
     if window_sz > 1:
         return sliding_window_of_data(x_data, y_data, window_sz)
@@ -170,48 +172,38 @@ def extract_target_data_by_features(differentiated_cell_type, x_features, y_feat
 
 def machine_learning_pipeline(x_features_list, y_features_list):
 
-    print "include K\t diff cell type\tx features\twindow size"
-    for include_k in [0, 1]:
-            for differentiated_cell_type in differentiated_cell_types:
-                for idx, y_features in enumerate(y_features_list):
-                    for window_sz in WINDOW_SZS:
-                        print "%d\t%s\t%s\t%d" %(include_k, differentiated_cell_type, ' '.join(x_features_list[idx]), window_sz)
-                        X, y = extract_target_data_by_features(differentiated_cell_type, x_features_list[idx], y_features, include_k, window_sz)
-                        print "len of data %d" % len(y)
-                        [classifier_names, classifiers] = generate_classifiers(len(x_features_list[idx]), window_sz)
-                        for cidx, cls_name in enumerate(classifier_names):
-                            perform_machine_learning_prediction(cls_name, classifiers[cidx], X, y)
+    print "include K\t diff cell type\tx features\twindow size\ttarget modification"
+    for differentiated_cell_type in differentiated_cell_types:
+        for idx, y_features in enumerate(y_features_list):
+            for include_k in [1]:#0,
+                for window_sz in WINDOW_SZS:
+                    print "%d\t%s\t%s\t%d\t%s" %(include_k, differentiated_cell_type, ' '.join(x_features_list[idx]), window_sz, ' '.join(y_features))
+                    X, y = extract_target_data_by_features(differentiated_cell_type, x_features_list[idx], y_features, include_k, window_sz)
+                    y = y.reshape(-1, )
+                    [classifier_names, classifiers] = generate_classifiers(len(x_features_list[idx]), window_sz)
+                    print "clf\tacc\trecall\tprec\tf1"
+                    for cidx, cls_name in enumerate(classifier_names):
+                        perform_machine_learning_prediction(cls_name, classifiers[cidx], X, y)
 def generate_classifiers(feature_sz, window_sz):
-    data_sz = feature_sz * window_sz
-    # classifier_names = ["LR", "KNN", "Linear SVM", "RBF SVM", "Gaussian Process",
-    #          "Naive Bayes", "QDA","Neural Network"]
-    #
-    # classifiers = [
-    #     LogisticRegression(C=10, penalty='l1', max_iter=10000),
-    #     KNeighborsClassifier(),
-    #     SVC(kernel="linear", C=0.025),
-    #     SVC(gamma=2, C=1),
-    #     GaussianProcessClassifier(1.0 * RBF(1.0)),
-    #     GaussianNB(),
-    #     QuadraticDiscriminantAnalysis(),
-    #     MLPClassifier(alpha=1e-5, hidden_layer_sizes= (data_sz * 3, data_sz), random_state = 1, max_iter=1000, learning_rate='adaptive')
-    # ]
-    # if not(feature_sz == 0 and window_sz == 1):
-    #     classifier_names += ["Decision Tree", "Random Forest", "AdaBoost"]
-    #
-    #     classifiers += [DecisionTreeClassifier(max_depth=5),
-    #                     RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1),
-    #                     AdaBoostClassifier()]
-    classifier_names = ["LR"]
-    classifiers = [LogisticRegression(C=1, penalty='l1', max_iter=10000)]
+    # data_sz = feature_sz * window_sz
+    classifier_names = ["KNN"] # "Linear SVM", "RBF SVM", "Gaussian Process","Naive Bayes", "QDA","Decision Tree", "Neural Network",,, "AdaBoost", "Random Forest","LR",
+
+    classifiers = [
+        KNeighborsClassifier(n_neighbors=1),
+    ]#SVC(kernel="linear", C=0.025), SVC(gamma=2, C=1), GaussianProcessClassifier(1.0 * RBF(1.0)),GaussianNB(),QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(max_depth=5)MLPClassifier(alpha=1e-5, hidden_layer_sizes= (50, 20), random_state = RANDOM_STATE, max_iter=10000, learning_rate='adaptive'),,AdaBoostClassifier()RandomForestClassifier(max_depth=5, n_estimators=10) LogisticRegression(C=10, penalty='l1', max_iter=10000),
+
+
+
+    # classifier_names = ["LR"]
+    # classifiers = [LogisticRegression(C=1, penalty='l1', max_iter=10000)]
     return [classifier_names, classifiers]
 def perform_machine_learning_prediction(clf_name, clf, X, y):
     try:
-        print "acc\trecall\tprec\tf1"
+
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size= TEST_RATIO, random_state= RANDOM_STATE)
         clf = clf.fit(X, y)
         y_pred = clf.predict(X_test)
-        print "%.2f\t%.2f\t%.2f\t%.2f" % (accuracy_score(y_test, y_pred), recall_score(y_test, y_pred), precision_score(y_test, y_pred), f1_score(y_test, y_pred))
+        print "%s\t%.2f\t%.2f\t%.2f\t%.2f" % (clf_name, accuracy_score(y_test, y_pred), recall_score(y_test, y_pred), precision_score(y_test, y_pred), f1_score(y_test, y_pred))
         # print(classification_report(y_test, y_pred))
         print(confusion_matrix(y_test, y_pred))
     except ValueError, e:
