@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 # Global Variables
 BASE_DIR = '../DATA/DATA_FOR_ANALYSIS/hESC_dME_dEC_dEN_interesected'
-
+FIGURE_DIR = '../FIGURES'
 DATA_TYPES = ["hESC", "dEC", "dME", "dEN", "K"]
 GEO_IDS = ["GSM1112841", "GSM1112820", "GSM1112839", "GSM916051", "K"]
 
@@ -41,3 +41,4 @@ for col_index, key in enumerate(END_NAMES):
         if col_index == 0:
             plt.ylabel(DATA_TYPES[row_index] + ' Freq')
 plt.show()
+plt.savefig(os.path.join(FIGURE_DIR, 'Histogram.png'), dpi = fig.dpi)
