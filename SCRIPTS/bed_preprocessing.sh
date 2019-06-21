@@ -7,44 +7,45 @@ module load bedtools/2.25.0
 module load bedops/2.4.14
 
 indir=/pub/hongleir/data/ChIP-Seq_Peaks
-K_dir=/pub/hongleir/prediction_by_k/data
+K_dir=/pub/hongleir/data/K
 
-chopped_file=$indir/MERGED'_200bp.bed'
-merged_chopped=$indir/MERGED'_Chopped.bed'
+peak_merged=$indir/peak_merged.bed
+peaks_overlapped_with_K_filtered=$indir/peaks_overlapped_with_K_filtered.bed
+original_K_data=$K_dir/K.bed
+filtered_K_data=$K_dir/K_filtered_by_merged_peaks.bed
+K_mean_in_each_peak=$K_dir/K_mean_in_each_peak.bed
+
 
 # Chip-Seq Data data Processing
-
-cat $indir/*island'.bed'| sort -k 1,1 -k2,2n | bedtools merge>$indir/MERGED'.bed'
-bedops --chop 200 $indir/MERGED'.bed' >$chopped_file
-bedtools intersect -a $K_dir/K.bed -b $chopped_file | sort -k 1,1 -k2,2n>$K_dir/K_filtered.bed
-bedtools intersect -a $chopped_file -b $K_dir/K_filtered.bed -wa | sort -k 1,1 -k2,2n| bedtools merge>$indir/MERGED'_FILTERED_BY_METHYLATION.bed'
-bedops --chop 200 $indir/MERGED'_FILTERED_BY_METHYLATION.bed' >$merged_chopped
-rm $indir/MERGED'.bed' $chopped_file
-
-bedtools map -a $merged_chopped -b $K_dir/K_filtered.bed -c 4 -o mean> $K_dir/K_mean.bed
+# 1. Merge all identified peaks in data
+cat $indir/*island'.bed'| sort -k 1,1 -k2,2n | bedtools merge>$peak_merged
+# 2. Obtain the overlapped CpGs in K data and Peaks
+bedtools intersect -a $original_K_data -b $peak_merged -wa | sort -k 1,1 -k2,2n>$filtered_K_data
+bedtools intersect -a $peak_merged -b $filtered_K_data -wa | sort -k 1,1 -k2,2n| bedtools merge>$peaks_overlapped_with_K_filtered
+# 3. Calculate the average K in each peak region
+bedtools map -a $peaks_overlapped_with_K_filtered -b $filtered_K_data -c 4 -o mean> $K_mean_in_each_peak
 
 cd $indir
 
 for f in *_island.bed
 do
   filename=${f%%_*}
-  bedtools intersect -a $merged_chopped -b $f -wa | sed 's/^\([^ ]*\)/\1 1/' >$filename'_overlap.bed'
-  bedtools intersect -a $merged_chopped -b $f -v | sed 's/^\([^ ]*\)/\1 0/' >$filename'_no_overlap.bed'
+  bedtools intersect -a $peaks_overlapped_with_K_filtered -b $f -wa | sort -k 1,1 -k2,2n| bedtools merge | sed 's/^\([^ ]*\)/\1 1/' >$filename'_overlap.bed'
+  bedtools intersect -a $peaks_overlapped_with_K_filtered -b $f -v | sort -k 1,1 -k2,2n| bedtools merge | sed 's/^\([^ ]*\)/\1 0/' >$filename'_no_overlap.bed'
   cat $filename'_overlap.bed' $filename'_no_overlap.bed' | sort -k 1,1 -k2,2n >$filename'_binarized.bed'
-  rm -f $filename'_overlap.bed'
-  rm -f $filename'_no_overlap.bed'
+  rm -f $filename'_overlap.bed' $filename'_no_overlap.bed'
   echo $filename
 done
 
 
 cd $indir
-DATA_FOR_LEARNING='/pub/hongleir/prediction_by_k/data/data_for_learning'
-mkdir -p $DATA_FOR_LEARNING
+DATA_FOR_PREDICTION=/pub/hongleir/DATA_FOR_PREDICTION
+mkdir -p $DATA_FOR_PREDICTION
 for f in *'_binarized.bed'
 do
   filename=${f%%_*}
-  cp $f $DATA_FOR_LEARNING
-  mv $DATA_FOR_LEARNING/$f $DATA_FOR_LEARNING/$filename'.bed'
+  cp $f $DATA_FOR_PREDICTION
+  mv $DATA_FOR_PREDICTION/$filename'_binarized.bed' $DATA_FOR_PREDICTION/$filename'.bed'
   echo $filename
 done
 
@@ -52,19 +53,16 @@ done
 methy_data_dir=/pub/hongleir/data/Methy-data
 cd $methy_data_dir
 
-mkdir -p output
 for f in *.bed
 do
     filename=${f%%\.*}
-    #bedtools intersect -a $f -b $merged_chopped | sort -k 1,1 -k2,2n >$filename'.tmp'
-    #bedtools map -a $merged_chopped -b $filename'.tmp' -c 5 -o mean>output/$filename'_mean.bed'
-    #rm -f $filename'.tmp'
-    #cp output/$filename'_mean.bed' $DATA_FOR_LEARNING
-    mv $DATA_FOR_LEARNING/$filename'_mean.bed' $DATA_FOR_LEARNING/$filename'.bed'
     echo $filename
+    bedtools intersect -a $f -b $peaks_overlapped_with_K_filtered | sort -k 1,1 -k2,2n >$filename'.tmp'
+    bedtools map -a $peaks_overlapped_with_K_filtered -b $filename'.tmp' -c 5 -o mean>$DATA_FOR_PREDICTION/$filename'.bed'
+    rm -f $filename'.tmp'
 done
 
-cp $K_dir/K_mean.bed $DATA_FOR_LEARNING
+cp $K_mean_in_each_peak $DATA_FOR_PREDICTION
 
-tar -jcvf $DATA_FOR_LEARNING'.tar.bz2' $DATA_FOR_LEARNING
+tar -jcvf $DATA_FOR_PREDICTION'.tar.bz2' $DATA_FOR_PREDICTION
 module purge

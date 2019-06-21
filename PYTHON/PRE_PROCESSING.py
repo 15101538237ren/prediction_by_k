@@ -9,8 +9,8 @@ from sklearn.utils import shuffle
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, recall_score, precision_score, f1_score
 
 #Models for classifiers
-from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
@@ -28,6 +28,7 @@ modification_names = ["H3K4me1", "H3K4me3", "H3K9Me3", "H3K27ac", "H3K27Me3", "H
 differentiated_cell_types = ["dEC"]#, "dME", "dEN"
 SCORING = ['f1_weighted']#'accuracy', 'precision', 'recall', ,'roc_auc'
 SCORING_KEYS_FOR_PRINT = ['test_f1_weighted']#,'test_accuracy','test_precision', 'test_recall', 'test_f1_weighted','test_roc_auc'
+DATA_DIR = '../DATA'
 
 def read_tab_seperated_file_and_get_target_column(input_file_path, target_col_index, target_data_type=float, start_line= 1, sep="\s+",line_end = "\n"):
     """
@@ -57,18 +58,18 @@ def read_tab_seperated_file_and_get_target_column(input_file_path, target_col_in
 
     return ret_value_list
 
-def combine_whole_dataset(region='GENOME', load=False):
-    dataset_dir = os.path.join('DATA_SET', region)
+def combine_whole_dataset(dataset_dir, load=False):
+
     if load:
-        with open(os.path.join(dataset_dir, region + '.pkl'), 'rb') as pkl_file:
+        with open(os.path.join(dataset_dir, 'DATA.pkl'), 'rb') as pkl_file:
             [k_data, histone_and_methy_data] = pickle.load(pkl_file)
     else:
         histone_and_methy_data = {}
 
-        k_data = read_tab_seperated_file_and_get_target_column(os.path.join(dataset_dir, 'K_mean.bed'),
+        k_data = read_tab_seperated_file_and_get_target_column(os.path.join(dataset_dir, 'K_mean_in_each_peak.bed'),
                                                                    TARGET_COLUMN_INDEX_OF_BED_FILE)
 
-        df = pd.read_csv('DATA/DATA_LABEL.txt', sep='\s+', index_col=0)
+        df = pd.read_csv(os.path.join(DATA_DIR, 'DATA_LABEL.txt'), sep='\s+', index_col=0)
 
         for idx in df.index:
             idx_s = str(idx)
@@ -78,7 +79,7 @@ def combine_whole_dataset(region='GENOME', load=False):
                 histone_and_methy_data[idx_s][col]['NAME'] = df.loc[idx, col]
                 print df.loc[idx, col]
                 histone_and_methy_data[idx_s][col]['DATA'] = read_tab_seperated_file_and_get_target_column(os.path.join(dataset_dir, df.loc[idx, col] + '.bed'), TARGET_COLUMN_INDEX_OF_BED_FILE)
-        with open(os.path.join(dataset_dir, region + '.pkl'), 'wb') as pkl_file:
+        with open(os.path.join(dataset_dir, 'DATA.pkl'), 'wb') as pkl_file:
             pickle.dump([k_data, histone_and_methy_data], pkl_file, -1)
     return [k_data, histone_and_methy_data]
 
@@ -117,8 +118,8 @@ def sliding_window_of_data(x_data, y_data , window_sz):
         sliced_x_data[i] = x_data[i : i + window_sz].flatten('F')
         sliced_y_data[i] = y_data[i + mid]
     return [sliced_x_data, sliced_y_data]
-
-original_dataset = combine_whole_dataset(region='GENOME_CHOPPED', load=True)
+DATA_SET_DIR = os.path.join(DATA_DIR, 'DATA_FOR_PREDICTION')
+original_dataset = combine_whole_dataset(DATA_SET_DIR, load=False)
 k_data, histone_and_methy_data = original_dataset
 hESC_data = histone_and_methy_data['hESC']
 
@@ -210,4 +211,5 @@ def perform_machine_learning_prediction(clf_name, clf, X, y):
         print e
 if __name__ == "__main__":
     [x_features_list, y_features_list] = generate_the_combination_of_features()
-    machine_learning_pipeline(x_features_list, y_features_list)
+    # machine_learning_pipeline(x_features_list, y_features_list)
+    pass
