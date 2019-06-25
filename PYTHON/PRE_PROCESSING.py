@@ -52,7 +52,7 @@ def read_tab_seperated_file_and_get_target_column(input_file_path, target_col_in
                 try:
                     led = target_data_type(line_contents[target_col_index])
                     ret_value_list.append(led)
-                except ValueError, e:
+                except ValueError as e:
                     ret_value_list.append(0)
             line = input_file.readline()
 
@@ -77,7 +77,7 @@ def combine_whole_dataset(dataset_dir, load=False):
             for col in df.columns:
                 histone_and_methy_data[idx_s][col] = {}
                 histone_and_methy_data[idx_s][col]['NAME'] = df.loc[idx, col]
-                print df.loc[idx, col]
+                print(df.loc[idx, col])
                 histone_and_methy_data[idx_s][col]['DATA'] = read_tab_seperated_file_and_get_target_column(os.path.join(dataset_dir, df.loc[idx, col] + '.bed'), TARGET_COLUMN_INDEX_OF_BED_FILE)
         with open(os.path.join(dataset_dir, 'DATA.pkl'), 'wb') as pkl_file:
             pickle.dump([k_data, histone_and_methy_data], pkl_file, -1)
@@ -160,11 +160,11 @@ def extract_target_data_by_features(differentiated_cell_type, x_features, y_feat
 
     # xor_indexs = np.logical_xor(x_data[:, 0], y_data[:, 0])
     #
-    # print "ratio of changed now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs))
+    # print("ratio of changed now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs)))
     #
     # xor_indexs = y_data.flatten() != 0
     #
-    # print "ratio of y post now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs))
+    # print("ratio of y post now: %.2f" % (float(sum(xor_indexs)) / len(xor_indexs)))
 
     if window_sz > 1:
         return sliding_window_of_data(x_data, y_data, window_sz)
@@ -173,16 +173,16 @@ def extract_target_data_by_features(differentiated_cell_type, x_features, y_feat
 
 def machine_learning_pipeline(x_features_list, y_features_list):
 
-    print "include K\t diff cell type\tx features\twindow size\ttarget modification"
+    print("include K\t diff cell type\tx features\twindow size\ttarget modification")
     for differentiated_cell_type in differentiated_cell_types:
         for idx, y_features in enumerate(y_features_list):
             for include_k in [1]:#0,
                 for window_sz in WINDOW_SZS:
-                    print "%d\t%s\t%s\t%d\t%s" %(include_k, differentiated_cell_type, ' '.join(x_features_list[idx]), window_sz, ' '.join(y_features))
+                    print("%d\t%s\t%s\t%d\t%s" %(include_k, differentiated_cell_type, ' '.join(x_features_list[idx]), window_sz, ' '.join(y_features)))
                     X, y = extract_target_data_by_features(differentiated_cell_type, x_features_list[idx], y_features, include_k, window_sz)
                     y = y.reshape(-1, )
                     [classifier_names, classifiers] = generate_classifiers(len(x_features_list[idx]), window_sz)
-                    print "clf\tacc\trecall\tprec\tf1"
+                    print("clf\tacc\trecall\tprec\tf1")
                     for cidx, cls_name in enumerate(classifier_names):
                         perform_machine_learning_prediction(cls_name, classifiers[cidx], X, y)
 def generate_classifiers(feature_sz, window_sz):
@@ -204,11 +204,11 @@ def perform_machine_learning_prediction(clf_name, clf, X, y):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size= TEST_RATIO, random_state= RANDOM_STATE)
         clf = clf.fit(X, y)
         y_pred = clf.predict(X_test)
-        print "%s\t%.2f\t%.2f\t%.2f\t%.2f" % (clf_name, accuracy_score(y_test, y_pred), recall_score(y_test, y_pred), precision_score(y_test, y_pred), f1_score(y_test, y_pred))
+        print("%s\t%.2f\t%.2f\t%.2f\t%.2f" % (clf_name, accuracy_score(y_test, y_pred), recall_score(y_test, y_pred), precision_score(y_test, y_pred), f1_score(y_test, y_pred)))
         # print(classification_report(y_test, y_pred))
         print(confusion_matrix(y_test, y_pred))
-    except ValueError, e:
-        print e
+    except ValueError as e:
+        print(e)
 if __name__ == "__main__":
     [x_features_list, y_features_list] = generate_the_combination_of_features()
     # machine_learning_pipeline(x_features_list, y_features_list)
