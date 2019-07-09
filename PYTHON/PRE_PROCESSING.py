@@ -191,7 +191,8 @@ def generate_classifiers(feature_sz, window_sz):
 
     classifiers = [
         KNeighborsClassifier(n_neighbors=1),
-    ]#SVC(kernel="linear", C=0.025), SVC(gamma=2, C=1), GaussianProcessClassifier(1.0 * RBF(1.0)),GaussianNB(),QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(max_depth=5)MLPClassifier(alpha=1e-5, hidden_layer_sizes= (50, 20), random_state = RANDOM_STATE, max_iter=10000, learning_rate='adaptive'),,AdaBoostClassifier()RandomForestClassifier(max_depth=5, n_estimators=10) LogisticRegression(C=10, penalty='l1', max_iter=10000),
+    ]#SVC(kernel="linear", C=0.025), SVC(gamma=2, C=1), GaussianProcessClassifier(1.0 * RBF(1.0)),GaussianNB(),QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(max_depth=5),
+    # MLPClassifier(alpha=1e-5, hidden_layer_sizes= (50, 20), random_state = RANDOM_STATE, max_iter=10000, learning_rate='adaptive'),,AdaBoostClassifier()RandomForestClassifier(max_depth=5, n_estimators=10) LogisticRegression(C=10, penalty='l1', max_iter=10000),
 
 
 

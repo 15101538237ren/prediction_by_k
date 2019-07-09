@@ -19,6 +19,14 @@ f11=$PREPROCESS_DIR/dmr_ovlp_tile.bed
 f12=$PREPROCESS_DIR/non_dmr_ovlp_tiles.bed
 f13=$PREPROCESS_DIR/dmr_merged_tile.bed
 f14=$PREPROCESS_DIR/GSM1112841_intersected_with_merged_k.bed
+DATA_SET_DIR=$PREDICT_PROJ_DIR/DATA/DATA_SET
+Genomic_Features_DIR=$PREDICT_PROJ_DIR/DATA/Genomic_Features
+f16=$DATA_SET_DIR/Genomic_Features
+ChromoHMM=$Genomic_Features_DIR/HmmH1hescHMM.bed
+f17=$ChromoHMM".interesected"
+f18=$ChromoHMM".non_interesected"
+f19=$ChromoHMM".merged"
+f20=$PREPROCESS_DIR/dmr_merged_tile_with_ChromeMM.bed
 index_dir=$PREPROCESS_DIR/Indexs
 prefix='chr'
 declare -a CHRS=('chr1' 'chr2' 'chr3' 'chr4' 'chr5' 'chr6' 'chr7' 'chr8' 'chr9' 'chr10' 'chr11' 'chr12' 'chr13' 'chr14' 'chr15' 'chr16' 'chr17' 'chr18' 'chr19' 'chr20' 'chr21' 'chr22')
@@ -154,13 +162,45 @@ prefix='chr'
 awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4}' $f13 | gsed 's/\t/,/g'| gsed -e "s/^$prefix//">$f13".index" 
 
 
-DATA_SET_DIR=$PREDICT_PROJ_DIR/DATA/DATA_SET
-Genomic_Features_DIR=$PREDICT_PROJ_DIR/DATA/Genomic_Features
-f16=$DATA_SET_DIR/Genomic_Features
+
 
 cp -r $index_dir $DATA_SET_DIR/Indexs
 
+# Process ChromoHMM, first call preprocess_ChromeHMM() in Python file to format it into 4 col .bed
+gsort -k 1,1 -k2,2n --parallel=8  -S 50% -i $ChromoHMM>$ChromoHMM".sorted"
+rm $ChromoHMM
+mv $ChromoHMM".sorted" $ChromoHMM
 
+bedtools intersect -a $f7".filtered" -b $ChromoHMM -f 0.5 -wa -wb -sorted| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f17
+#remove the useless columns
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$8}' $f17>$f17".tmp"
+rm -f $f17
+mv $f17".tmp" $f17
 
+#obtain the non-dmr overlapping tile file
 
+bedtools intersect -a $f7".filtered" -b $ChromoHMM -f 0.5 -v -sorted| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f18
+# add 0 to last column to indicate the class is 0 relative to class label in dmr
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"0}' $f18>$f18".tmp"
+rm -f $f18
+mv $f18".tmp" $f18
 
+cat $f17 $f18| gsort -k 1,1 -k2,2n --parallel=8  -S 50%|bedtools merge -c 4 -o max>$f19
+rm $f17 $f18
+
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3}' $f19>$f19".tmp"
+
+for chr in "${CHRS[@]}"; 
+do
+    bedextract $chr $f13 | awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4}'|gsed 's/\t/,/g'| gsed -e "s/^$prefix//"> $index_dir/$chr.csv; 
+done
+
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3}' $f13>$f13".tmp"
+
+diff $f13".tmp" $f19".tmp"
+rm -f $f13".tmp" $f19".tmp"
+paste $f13 $f19 | cut -f 1,2,3,4,8 >$f20
+for chr in "${CHRS[@]}"; 
+do
+    bedextract $chr $f20 | awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5}'|gsed 's/\t/,/g'| gsed -e "s/^$prefix//"> $index_dir/$chr.csv; 
+done
