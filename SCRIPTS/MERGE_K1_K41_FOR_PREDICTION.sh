@@ -19,6 +19,9 @@ f11=$PREPROCESS_DIR/dmr_ovlp_tile.bed
 f12=$PREPROCESS_DIR/non_dmr_ovlp_tiles.bed
 f13=$PREPROCESS_DIR/dmr_merged_tile.bed
 f14=$PREPROCESS_DIR/GSM1112841_intersected_with_merged_k.bed
+index_dir=$PREPROCESS_DIR/Indexs
+prefix='chr'
+declare -a CHRS=('chr1' 'chr2' 'chr3' 'chr4' 'chr5' 'chr6' 'chr7' 'chr8' 'chr9' 'chr10' 'chr11' 'chr12' 'chr13' 'chr14' 'chr15' 'chr16' 'chr17' 'chr18' 'chr19' 'chr20' 'chr21' 'chr22')
 # 1. Merge K1 K41 together and sort the merged file: 
 cat $f1 $f2 | gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f3
 # Get the min and max file
@@ -44,8 +47,8 @@ FILE_COUNTER=0
 for f in *.bed
 do
   FILE_COUNTER=$((FILE_COUNTER+1))
-  echo $FILE_COUNTER
-  awk -v fc=$FILE_COUNTER 'BEGIN {FS="\t"; OFS=","} {print $0"\t"fc}' $f| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f.tmp
+  echo $f" "$FILE_COUNTER
+  #awk -v fc=$FILE_COUNTER 'BEGIN {FS="\t"; OFS=","} {print $0"\t"fc}' $f| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f.tmp
 done
 
 cat *.tmp | gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$DMR_DIR/merged_dmr.bed
@@ -95,74 +98,67 @@ rm -f $f12
 mv $f12".tmp" $f12
 
 cat $f11 $f12| gsort -k 1,1 -k2,2n --parallel=8  -S 50%|bedtools merge -c 4 -o max>$f13
-awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3}' $f13>$f13".index"
 
 
-#can parallel with the last one
-# For each tile, find the nearest 1, 5, 10, 20 Ks and the corresponding distance by bedtools closest.
-# Overlap the genome tiles with DMR
-prefix='chr'
+mkdir -p $index_dir
+for chr in "${CHRS[@]}"; 
+do
+    bedextract $chr $f13 | awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4}'|gsed 's/\t/,/g'| gsed -e "s/^$prefix//"> $index_dir/$chr.csv; 
+done
 
-BASE_DIR=/Users/emmanueldollinger/MatlabProjects/K_Estimation/
-PREDICT_PROJ_DIR=/Users/emmanueldollinger/PycharmProjects/prediction_by_k
-PREPROCESS_DIR=$PREDICT_PROJ_DIR/DATA/Preprocessing
-DMR_DIR=$PREDICT_PROJ_DIR/DATA/Genomic_Features/DMR
-DATA_DIR=$BASE_DIR/DATA/Repli_BS
-K_RATES_DIR=$DATA_DIR/K_RATES
+#awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3}' $index_dir/chr1.bed>$index_dir/chr1.bed".index"
 
-f1=$K_RATES_DIR/1.bed
-f2=$K_RATES_DIR/41.bed
-f3=$PREPROCESS_DIR/Merged_k1_k41.bed
-f4=/pub/hongleir/data/Methy-data
-f5=$PREPROCESS_DIR/Merged_k1_k41_max.bed
-f6=$PREPROCESS_DIR/Merged_k1_k41_min.bed
-f7=$PREPROCESS_DIR/GENOME_100bp_TILES.bed
-f10=$PREPROCESS_DIR/merged_dmr.bed
-f11=$PREPROCESS_DIR/dmr_ovlp_tile.bed
-f12=$PREPROCESS_DIR/non_dmr_ovlp_tiles.bed
-f13=$PREPROCESS_DIR/dmr_merged_tile.bed
-f14=$PREPROCESS_DIR/GSM1112841_intersected_with_merged_k.bed
-for N_neighbors in 5; # 3 5
+
+for N_neighbors in 1; # 3 5
 do
 	OUT_NDIR=$PREPROCESS_DIR/$N_neighbors
-	f8=$OUT_NDIR/$N_neighbors"_K_min.bed"
-	f9=$OUT_NDIR/$N_neighbors"_K_max.bed"
-	f92=$OUT_NDIR/$N_neighbors"_methylation.bed"
+	f8=$OUT_NDIR/$N_neighbors"_K_min"
+	f9=$OUT_NDIR/$N_neighbors"_K_max"
+	f92=$OUT_NDIR/$N_neighbors"_methylation"
 	mkdir -p $OUT_NDIR
+	mkdir -p $f8 $f9 $f92
+	mkdir -p $f8"_ind"
 	#-a tile file, -b K min file
-	bedtools closest -a $f7".filtered" -b $f6 -D a -t first -k $N_neighbors|awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$8"\t"$9"\t"$10/10000.0}'|gsort -k 1,1 -k2,2n --parallel=8  -S 50%| bedtools merge -c 4,5,6 -o collapse>$f8
-	#awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5"\t"$6}' $f8 | gsed 's/\t/,/g'| gsed -e "s/^$prefix//">$f8".csv"
-	#echo $N_neighbors" K min is done"
+	#bedtools closest -a $f7".filtered" -b $f6 -D a -t first -k $N_neighbors|awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$8"\t"$9"\t"$10/10000.0}'|gsort -k 1,1 -k2,2n --parallel=8  -S 50%| bedtools merge -c 4,5,6 -o collapse>$f8".bed"
+	for chr in "${CHRS[@]}"; 
+	do
+	    bedextract $chr $f8".bed" > $f8"_ind"/$chr".bed" #| awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5"\t"$6}' | gsed 's/\t/,/g'| gsed -e "s/^$prefix//"> $f8/$chr".csv"; 
+	done
+	echo $N_neighbors" K min is done"
 	
-	bedtools closest -a $f7".filtered" -b $f5 -D a -t first -k $N_neighbors|awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$8"\t"$9"\t"$10/10000.0}'|gsort -k 1,1 -k2,2n --parallel=8  -S 50%|bedtools merge -c 4,5,6 -o collapse>$f9
-	#awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5"\t"$6}' $f9 | gsed 's/\t/,/g'| gsed -e "s/^$prefix//">$f9".csv"
-	#echo $N_neighbors" K max is done"
+	#bedtools closest -a $f7".filtered" -b $f5 -D a -t first -k $N_neighbors|awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$8"\t"$9"\t"$10/10000.0}'|gsort -k 1,1 -k2,2n --parallel=8  -S 50%|bedtools merge -c 4,5,6 -o collapse>$f9".bed"
 	
+	for chr in "${CHRS[@]}"; 
+	do
+	    bedextract $chr $f9".bed" |awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5"\t"$6}' |gsed 's/\t/,/g'| gsed -e "s/^$prefix//"> $f9/$chr".csv"; 
+	done
+	echo $N_neighbors" K max is done"
 
-	bedtools closest -a $f7".filtered" -b $f14 -D a -t first -k $N_neighbors |awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$8"\t"$9/10000.0}'|gsort -k 1,1 -k2,2n --parallel=8  -S 50%| bedtools merge -c 4,5 -o collapse>$f92
-	#awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5}' $f92 | gsed 's/\t/,/g'| gsed -e "s/^$prefix//">$f92".csv"
+	# #bedtools closest -a $f7".filtered" -b $f14 -D a -t first -k $N_neighbors |awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$8"\t"$9/10000.0}'|gsort -k 1,1 -k2,2n --parallel=8  -S 50%| bedtools merge -c 4,5 -o collapse>$f92".bed"
+	for chr in "${CHRS[@]}"; 
+	do
+	    bedextract $chr $f92".bed" | awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5}' | gsed 's/\t/,/g'| gsed -e "s/^$prefix//">$f92/$chr".csv"; 
+	done
 	echo $N_neighbors" methy is done"
 done
 
-f15=$PREPROCESS_DIR/3/3_K_min.bed
+f15=$PREPROCESS_DIR/1/1_K_min_ind/chr1.bed
 awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3}' $f15| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f15".tmp"
 
 # Check the order of chr index are consistent between the k neighbor version and dmr region version
-diff $f15".tmp" $f13".index"
+diff $f15".tmp" $index_dir/chr1.bed".index"
 # No differenece Checked! Now can use $f13 as index
 rm $f15".tmp"
 
 prefix='chr'
-awk 'BEGIN {FS="\t"; OFS=","} {print NR-1"\t"$1"\t"$2"\t"$4}' $f13 | gsed 's/\t/,/g'| gsed -e "s/^$prefix//" >$f13".index"
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4}' $f13 | gsed 's/\t/,/g'| gsed -e "s/^$prefix//">$f13".index" 
 
 
 DATA_SET_DIR=$PREDICT_PROJ_DIR/DATA/DATA_SET
+Genomic_Features_DIR=$PREDICT_PROJ_DIR/DATA/Genomic_Features
+f16=$DATA_SET_DIR/Genomic_Features
 
-mv 1 3 5 $f13".index" $DATA_SET_DIR
-
-
-
-
+cp -r $index_dir $DATA_SET_DIR/Indexs
 
 
 
