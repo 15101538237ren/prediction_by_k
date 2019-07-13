@@ -28,8 +28,14 @@ f18=$ChromoHMM".non_interesected"
 f19=$ChromoHMM".merged"
 f20=$PREPROCESS_DIR/dmr_merged_tile_with_ChromeMM.bed
 index_dir=$PREPROCESS_DIR/Indexs
+GENOME_DIR=$PREPROCESS_DIR/hg19
+TILE_METHY_DATA=$PREPROCESS_DIR/TILE_METHY_REP
 prefix='chr'
 declare -a CHRS=('chr1' 'chr2' 'chr3' 'chr4' 'chr5' 'chr6' 'chr7' 'chr8' 'chr9' 'chr10' 'chr11' 'chr12' 'chr13' 'chr14' 'chr15' 'chr16' 'chr17' 'chr18' 'chr19' 'chr20' 'chr21' 'chr22')
+
+HISTONE_DIR=$PREDICT_PROJ_DIR/DATA/DATA_FOR_PREDICTION
+declare -a HISTONES=('GSM772800' 'GSM772752' 'GSM772756' 'GSM997249' 'GSM772750' 'GSM772751')
+
 # 1. Merge K1 K41 together and sort the merged file: 
 cat $f1 $f2 | gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f3
 # Get the min and max file
@@ -56,7 +62,7 @@ for f in *.bed
 do
   FILE_COUNTER=$((FILE_COUNTER+1))
   echo $f" "$FILE_COUNTER
-  #awk -v fc=$FILE_COUNTER 'BEGIN {FS="\t"; OFS=","} {print $0"\t"fc}' $f| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f.tmp
+  awk -v fc=$FILE_COUNTER 'BEGIN {FS="\t"; OFS=","} {print $0"\t"fc}' $f| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f.tmp
 done
 
 cat *.tmp | gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$DMR_DIR/merged_dmr.bed
@@ -199,8 +205,79 @@ awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3}' $f13>$f13".tmp"
 
 diff $f13".tmp" $f19".tmp"
 rm -f $f13".tmp" $f19".tmp"
+
+
+#Process Tile K data for ML: copied from K_Estimation/DATA/Repli_BS/K_RATES/41/100/41.bed and 1.bed
+for ti in 1 2;
+do
+	f21=$TILE_METHY_DATA$ti".bed"
+	echo $f21
+	#gsort -k 1,1 -k2,2n --parallel=8  -S 50% -i $f21>$f21".sorted"
+	#rm $f21
+	#mv $f21".sorted" $f21
+	bedtools intersect -a $f7".filtered" -b $f21 -f 0.5 -wa -wb -sorted| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f21".tmp"
+	#remove the useless columns
+	awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$8"\t"$9"\t"$10}' $f21".tmp">$f21".intersected"
+
+	#obtain the non-dmr overlapping tile file
+
+	bedtools intersect -a $f7".filtered" -b $f21 -f 0.5 -v -sorted| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f21".tmp"
+	# add 0 to last column to indicate the class is 0 relative to class label in dmr
+	awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"0"\t"0"\t"0}' $f21".tmp">$f21".non_intersected"
+	rm -f $f21".tmp"
+	cat $f21".intersected" $f21".non_intersected"| gsort -k 1,1 -k2,2n --parallel=8  -S 50%|bedtools merge -c 4,5,6 -o max>$f21".merged"
+	rm $f21".non_intersected" $f21".intersected"
+done
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3}' $f21".merged">$f21".tmp"
+diff $f13".tmp" $f21".tmp" 
+
+
+for his in "${HISTONES[@]}"; 
+do
+	f22=$HISTONE_DIR/$his".bed"
+	echo $f22
+
+	bedtools intersect -a $f7".filtered" -b $f22 -f 0.5 -wa -wb -sorted| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f22".tmp"
+	#remove the useless columns
+	awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$8"}' $f22".tmp">$f22".intersected"
+
+	#obtain the non-dmr overlapping tile file
+
+	bedtools intersect -a $f7".filtered" -b $f22 -f 0.5 -v -sorted| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f22".tmp"
+	# add 0 to last column to indicate the class is 0 relative to class label in dmr
+	awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"0}' $f22".tmp">$f22".non_intersected"
+	rm -f $f22".tmp"
+	cat $f22".intersected" $f22".non_intersected"| gsort -k 1,1 -k2,2n --parallel=8  -S 50%|bedtools merge -c 4 -o max>$f22".merged"
+	rm $f22".non_intersected" $f22".intersected"    
+done
+
+
 paste $f13 $f19 | cut -f 1,2,3,4,8 >$f20
 for chr in "${CHRS[@]}"; 
 do
     bedextract $chr $f20 | awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5}'|gsed 's/\t/,/g'| gsed -e "s/^$prefix//"> $index_dir/$chr.csv; 
 done
+
+
+
+
+
+# download hg19
+cd $GENOME_DIR
+FTP_LINK=http://hgdownload.cse.ucsc.edu/goldenPath/hg19/chromosomes/
+for chr in "${CHRS[@]}"; 
+do
+	file_name=$chr".fa.gz"
+    wget $FTP_LINK$file_name .
+    gunzip $file_name
+done
+ffn=$PREPROCESS_DIR/merged_k_and_methy.bed
+gsort -k 1,1 -k2,2n --parallel=8  -S 50% -i $f1>$f1".sorted"
+rm -f $f1
+mv $f1".sorted" $f1
+gsort -k 1,1 -k2,2n --parallel=8  -S 50% -i $f14>$f14".sorted"
+rm -f $f14
+mv $f14".sorted" $f14
+bedtools intersect -a $f1 -b $f14 -f 0.5 -wa -wb -sorted| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$ffn
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$9}' $ffn|gsed 's/\t/,/g'| gsed -e "s/^$prefix//">$ffn".csv"
+

@@ -21,11 +21,26 @@ import matplotlib.pyplot as plt
 DATA_SET_DIR = '../DATA/DATA_SET'
 FILE_END = '.bed.csv'
 DATA_TYPE = {'MAX': '_K_max', 'MIN': '_K_min', 'METHY': '_methylation'}
-DATA_TYPE_ARR = ['MIN', 'MAX', 'METHY']
+DATA_TYPEs = ['MIN', 'MAX', 'METHY']
 K_LEN = [1, 3, 5]
 INDEX_NAME = 'Indexs'
 INDEX_DIR = os.path.join(DATA_SET_DIR, INDEX_NAME)
 CHROMOSOMES = [str(i) for i in range(1, 23)]
+
+K_KEY = 'k'
+D_KEY = 'd'
+ND_KEY = 'nd'
+ANNO_KEY = 'anno'
+ANNO_ONE_HOT_KEY = 'anno_one_hot'
+NTYPE_ANNOTATIONS = 16
+ANNO_SELECTION = ANNO_KEY
+FIELD_ARR = [ [K_KEY], [K_KEY, D_KEY], [K_KEY, ND_KEY], [K_KEY, ANNO_SELECTION],[K_KEY, D_KEY, ANNO_SELECTION], [K_KEY, ND_KEY, ANNO_SELECTION]]
+FIELD_LABELS = ['k', 'k + d', 'k + nd', 'k + ChrMM', 'k + d + ChrMM', 'k + nd + ChrMM']
+METHY_KEY = 'METHY'
+K_METHY_KEY = K_KEY + "+" + METHY_KEY
+DATA_TYPE_ARR = [K_KEY, METHY_KEY, K_METHY_KEY]
+
+EACH_SUB_FIG_SIZE = 5
 CLASSES = [0, 1, 2, 3]
 CLASSES_LABELS = ['NON', 'Ecto DMR', 'Endo DMR', 'Meso DMR']
 COLORS = ['r', 'g', 'b', 'k']
@@ -107,9 +122,9 @@ def preprocess_ChromeHMM(sep="\s+",line_end = "\n"):
             ltw = "\t".join([chr_i, start, end, label_id])if int(start) < int(end) else "\t".join([chr_i, end, start, label_id])
             ltws.append(ltw)
 
-    # with open(input_fp, "w") as file:
-    #     file.write((line_end).join(ltws))
-    #     file.write(line_end)
+    with open(input_fp, "w") as file:
+        file.write((line_end).join(ltws))
+        file.write(line_end)
     for label_id, label in ChromeMM_DICT.items():
         print("%s\t%s" %(label_id, label))
 
@@ -138,12 +153,7 @@ def read_data(data_set_dir, k_len, data_type):
         c_x2 = np.concatenate((c_x2, x[test_indexs, :]), axis=0) if c_x2.size != 0 else x[test_indexs, :]
         c_y2 = np.concatenate((c_y2, y[test_indexs]), axis=0) if c_y2.size != 0 else y[test_indexs]
     return [c_x1, c_x2, c_y1, c_y2]
-K_KEY = 'k'
-D_KEY = 'd'
-ND_KEY = 'nd'
-ANNO_KEY = 'anno'
-ANNO_ONE_HOT_KEY = 'anno_one_hot'
-NTYPE_ANNOTATIONS = 16
+
 def obtain_data_by_field_selection(data_set_dir, k_len, data_type, fields):
     data_list = read_data(data_set_dir, k_len, data_type)
     COL_INDEXS = []
@@ -169,73 +179,67 @@ def obtain_data_by_field_selection(data_set_dir, k_len, data_type, fields):
             one_hot_annotations[np.arange(anno_len), annotations] = 1
             data_list[didx] = np.concatenate((data[:, 0 : -1], one_hot_annotations), axis=1)
     return data_list
-# def read_data():
-#     x_train = {}
-#     y_train = {}
-#     x_test = {}
-#     y_test = {}
-#     OUT_DIR = '../DATA/MINI_DATA_SET'
-#     for k_i, klen in enumerate(K_LEN):
-#         for d_i, datatype in enumerate(DATA_TYPE_ARR):
-#
-#             dict_key = str(klen) + '_' + datatype
-#             x_train[dict_key] = c_x1
-#             y_train[dict_key] = c_y1
-#             x_test[dict_key] = c_x2
-#             y_test[dict_key] = c_y2
-#     return [x_train, y_train, x_test, y_test]
-#
-# [x_train, y_train, x_test, y_test] = read_data()
-obtain_data_by_field_selection('../DATA/MINI_DATA_SET', 3, 'MIN', [K_KEY, ND_KEY, ANNO_KEY])
 
-def plot_pca():
-    fig, axs = plt.subplots(3, 3, figsize=(15, 15))
-    for k_i, klen in enumerate(K_LEN):
-        for d_i, datatype in enumerate(DATA_TYPE_ARR):
-            dict_key = str(klen) + '_' + datatype
-            x = x_train[dict_key]
-            x = StandardScaler().fit_transform(x)
-            pca = PCA(n_components=2)
-            pc = pca.fit_transform(x)
-            y = y_train[dict_key]
-            ax = axs[k_i, d_i]
+def plot_pca_or_tsne(DATA_DIR, klen, tsne = 0):
+    FIG_TYPE = "TSNE" if tsne else "PCA"
+    FIELD_ARR_HERE = FIELD_ARR[1 : ] if klen == 1 else FIELD_ARR
+    FIELD_LABELS_HERE = FIELD_LABELS[1 : ] if klen == 1 else FIELD_LABELS
+    hbins =len(FIELD_ARR_HERE)
+    wbins = len(DATA_TYPE_ARR)
+
+    fig, axs = plt.subplots(hbins, wbins, figsize=(hbins * EACH_SUB_FIG_SIZE, wbins * (EACH_SUB_FIG_SIZE - 2)))
+
+    for f_i, filed in enumerate(FIELD_ARR_HERE):
+        for d_i, type_name in enumerate(DATA_TYPE_ARR):
+            if K_KEY == type_name:
+                data_type = 'MIN'
+                x_train, _, y_train, _ = obtain_data_by_field_selection(DATA_DIR, klen, data_type, filed)
+            elif METHY_KEY == type_name:
+                data_type = METHY_KEY
+                x_train, _, y_train, _ = obtain_data_by_field_selection(DATA_DIR, klen, data_type, filed)
+            elif K_METHY_KEY == type_name:
+                data_type = 'MIN'
+                x_train1, _, y_train1, _ = obtain_data_by_field_selection(DATA_DIR, klen, data_type, filed)
+                data_type = METHY_KEY
+                x_train2, _, y_train2, _ = obtain_data_by_field_selection(DATA_DIR, klen, data_type, filed)
+                x_train = np.concatenate((x_train1, x_train2), axis=0)
+                y_train = np.concatenate((y_train1, y_train2), axis=0)
+            else:
+                return
+            if tsne:
+                time_start = time.time()
+                pca = TSNE(n_components=2, perplexity=10, n_iter=250)
+                pc = pca.fit_transform(x_train)
+                print('t-SNE in %.2f seconds' % (time.time() - time_start))
+            else:
+                x_train = StandardScaler().fit_transform(x_train)
+                pca = PCA(n_components=2)
+                pc = pca.fit_transform(x_train)
+            ax = axs[f_i, d_i]
             for target, color in zip(CLASSES, COLORS):
-                indexs = y == target
+                indexs = y_train == target
                 ax.scatter(pc[indexs, 0], pc[indexs, 1], c=color, s=10)
-
-            ax.set_xlabel('PC1', fontsize=8)
-            ax.set_ylabel('K,d:' + str(klen) + ' PC2', fontsize=8)
-            ax.set_title(datatype, fontsize=8)
-            ax.legend(CLASSES_LABELS)
+            if not tsne:
+                var_exp = [str(round(item, 2)) for item in pca.explained_variance_ratio_[0 : 2]]
+                var_str = "pc1:"+ var_exp[0] + ", pc2:" + var_exp[1]
+                ax.text(0, 0, var_str , fontsize=10, color="red")
+            ax.set_xlabel('PC1', fontsize=12)
+            if d_i == 0:
+                ax.set_ylabel(FIELD_LABELS_HERE[f_i] , fontsize=12)
+            if f_i == 0:
+                ax.set_title(type_name, fontsize=12)
+            if f_i ==0 and d_i == 0:
+                ax.legend(CLASSES_LABELS)
             ax.grid()
 
-    plt.savefig('../FIGURES/PCA.png', dpi=200)
+    plt.savefig("../FIGURES/" + FIG_TYPE + "_Klen_" + str(klen) + ".png", dpi=200)
     plt.show()
 
-def plot_tsne():
-    fig, axs = plt.subplots(3, 3, figsize=(15, 15))
-    for k_i, klen in enumerate(K_LEN):
-        for d_i, datatype in enumerate(DATA_TYPE_ARR):
-            dict_key = str(klen) + '_' + datatype
-            x = x_train[dict_key]
-            time_start = time.time()
-            tsne = TSNE(n_components=2, perplexity=10, n_iter=250)
-            pc = tsne.fit_transform(x)
-            print('t-SNE in %.2f seconds'%(time.time() - time_start))
-            y = y_train[dict_key]
-            ax = axs[k_i, d_i]
-            for target, color in zip(CLASSES, COLORS):
-                indexs = y == target
-                ax.scatter(pc[indexs, 0], pc[indexs, 1], c=color, s=10)
-
-            ax.set_xlabel('TSNE 1', fontsize=8)
-            ax.set_ylabel('K,d:' + str(klen) + ' TSNE 2', fontsize=8)
-            ax.set_title(datatype, fontsize=8)
-            ax.legend(CLASSES_LABELS)
-            ax.grid()
-
-    plt.savefig('../FIGURES/TSNE.png', dpi=200)
-    plt.show()
+def plot_figures():
+    OUT_DATA_DIR = '../DATA/MINI_DATA_SET'
+    for tsne in [0, 1]:
+        for klen in K_LEN:
+            plot_pca_or_tsne(OUT_DATA_DIR, klen, tsne=tsne)
 
 def build_classifiers():
     classifier_names = [
@@ -247,27 +251,27 @@ def build_classifiers():
 
     classifiers = [
         #LogisticRegression(C=1, penalty='l1', max_iter=10000),
-        #KNeighborsClassifier(n_neighbors=1)#,
+        # KNeighborsClassifier(n_neighbors=1)#,
         MLPClassifier(alpha=1e-5, hidden_layer_sizes=(100, 100, 20), random_state=RANDOM_STATE, max_iter=50000, learning_rate='adaptive')
         #GradientBoostingClassifier(n_estimators=5, learning_rate=.1, max_features=2, max_depth=2,random_state=RANDOM_STATE)
     ]
     return [classifier_names, classifiers]
+def generate_table(out_dir, klen, performances):
+    FIELD_LABELS_HERE = FIELD_LABELS[1:] if klen == 1 else FIELD_LABELS
+    performances = np.array(performances)
+    metrics = ['accuarcy', 'recall', 'precision', 'f1', 'roc']
+    for c_i, classifier_name in enumerate(classifier_names):
+        for m_i, metric in enumerate(metrics):
+            out_fp = os.path.join(out_dir, str(klen) + '_' + classifier_name+ "_" + metric + ".csv")
+            performance = performances[:,:, c_i, m_i]
+            row_names = np.array(FIELD_LABELS_HERE).reshape((performance.shape[0]), 1)
+            performance = np.concatenate((row_names, performance), axis=1)
+            np.savetxt(out_fp, performance[:, :], fmt="%s,%s,%s,%s", delimiter='\n', header= ',' + ','.join(DATA_TYPE_ARR))
 
-def prepare_ml_data(dict_key):
-    scaler = MinMaxScaler()
-    X_train = x_train[dict_key]
-    X_test = x_test[dict_key]
+[classifier_names, classifiers] = build_classifiers()
 
-    Y_train = y_train[dict_key]
-    Y_test = y_test[dict_key]
-    Y_train[Y_train > 0] = 1
-    Y_test[Y_test > 0] = 1
-
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.fit_transform(X_test)
-    return X_train, X_test, Y_train,Y_test
 def prediction(klen, predict_type, X_train, X_test, Y_train,Y_test):
-    [classifier_names, classifiers] = build_classifiers()
+    performances = []
     for cidx, clf_name in enumerate(classifier_names):
         clf = classifiers[cidx].fit(X_train, Y_train)
         y_pred = clf.predict(X_test)
@@ -277,41 +281,55 @@ def prediction(klen, predict_type, X_train, X_test, Y_train,Y_test):
             Z = clf.predict_proba(X_test)[:, 1]
         fpr_gb, tpr_gb, _ = roc_curve(Y_test, Z)
         roc = auc(fpr_gb, tpr_gb)
-
+        perf = [accuracy_score(Y_test, y_pred),
+                       recall_score(Y_test, y_pred),
+                       precision_score(Y_test, y_pred),
+                       f1_score(Y_test, y_pred),
+                       roc]
         print("%s\t%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f" % (str(klen), predict_type,
                                                             clf_name, accuracy_score(Y_test, y_pred),
                                                             recall_score(Y_test, y_pred),
                                                             precision_score(Y_test, y_pred),
                                                             f1_score(Y_test, y_pred),
                                                             roc))
-def machine_learning():
-    X_train = {}
-    X_test = {}
-    Y_train = {}
-    Y_test = {}
+        performances.append(perf)
+    return performances
+def machine_learning(DATA_DIR, klen):
+    FIELD_ARR_HERE = FIELD_ARR[1 : ] if klen == 1 else FIELD_ARR
+    FIELD_LABELS_HERE = FIELD_LABELS[1 : ] if klen == 1 else FIELD_LABELS
+    performances = [[] for item in range(len(FIELD_ARR_HERE))]
 
-    for k_i, klen in enumerate(K_LEN):
-        for d_i, datatype in enumerate(DATA_TYPE_ARR):
-            dict_key = str(klen) + '_' + datatype
-            X_train[dict_key], X_test[dict_key], Y_train[dict_key], Y_test[dict_key] = prepare_ml_data(dict_key)
-
-    for k_i, klen in enumerate(K_LEN):
-        pt1 = 'K'
-        key1 = 'MIN'
-        dk1 = str(klen) + '_' + key1
-        prediction(klen, pt1, X_train[dk1], X_test[dk1], Y_train[dk1], Y_test[dk1])
-
-        pt2 = 'METHY'
-        key2 = pt2
-        dk2 = str(klen) + '_' + key2
-        prediction(klen, pt2, X_train[dk2], X_test[dk2], Y_train[dk2], Y_test[dk2])
-
-        pt3 = 'K + METHY'
-        X_train_c = np.concatenate((X_train[dk1], X_train[dk2]), axis=1)
-        X_test_c = np.concatenate((X_test[dk1], X_test[dk2]), axis=1)
-        prediction(klen, pt3, X_train_c, X_test_c, Y_train[dk1], Y_test[dk1])
-
+    for f_i, filed in enumerate(FIELD_ARR_HERE):
+        for d_i, type_name in enumerate(DATA_TYPE_ARR):
+            if K_KEY == type_name:
+                data_type = 'MIN'
+                x_train, x_test, y_train, y_test = obtain_data_by_field_selection(DATA_DIR, klen, data_type, filed)
+            elif METHY_KEY == type_name:
+                data_type = METHY_KEY
+                x_train, x_test, y_train, y_test= obtain_data_by_field_selection(DATA_DIR, klen, data_type, filed)
+            elif K_METHY_KEY == type_name:
+                data_type = 'MIN'
+                x_train1, x_test1, y_train1, y_test1 = obtain_data_by_field_selection(DATA_DIR, klen, data_type, filed)
+                data_type = METHY_KEY
+                x_train2, x_test2, y_train2, y_test2 = obtain_data_by_field_selection(DATA_DIR, klen, data_type, filed)
+                x_train = np.concatenate((x_train1, x_train2), axis=0)
+                y_train = np.concatenate((y_train1, y_train2), axis=0)
+                x_test = np.concatenate((x_test1, x_test2), axis=0)
+                y_test = np.concatenate((y_test1, y_test2), axis=0)
+            else:
+                return
+            y_train[y_train > 0] = 1
+            y_test[y_test > 0] = 1
+            predict_type = FIELD_LABELS_HERE[f_i] + " " + type_name
+            perf = prediction(klen, predict_type, x_train, x_test, y_train, y_test)
+            performances[f_i].append(perf)
+    return performances
 if __name__ == "__main__":
-    machine_learning()
     # OUT_DIR = '../DATA/MINI_DATA_SET'
-    # create_mini_data_set(OUT_DIR)
+    # PERF_DIR='../DATA/ML_PERFORMANCE'
+    # for klen in K_LEN:
+    #     performances = machine_learning(OUT_DIR, klen)
+    #     generate_table(PERF_DIR, klen, performances)
+    # #
+    # # create_mini_data_set(OUT_DIR)
+    preprocess_ChromeHMM()
