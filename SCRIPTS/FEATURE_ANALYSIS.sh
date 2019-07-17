@@ -262,6 +262,7 @@ WORK_DIR=$GENOMIC_FEATURES/TFBS14
 OUT_DIR=$WORK_DIR/K_intersected
 mkdir -p $OUT_DIR
 cd $WORK_DIR
+
 #Do intersection
 for f in *.bed;
 do
@@ -277,14 +278,25 @@ do
 done
 #gsed 's/\t/,/g'| gsed -e "s/^chr//">
 
-KRATE_DIR=/Users/emmanueldollinger/MatlabProjects/K_Estimation/DATA/Repli_BS/K_RATES
-GENOMIC_FEATURES=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/Genomic_Features
 
+WORK_DIR=$GENOMIC_FEATURES/ChrmoHMM
+mkdir -p $WORK_DIR
+cp $fHMM $WORK_DIR
+OUT_DIR=$WORK_DIR/K_intersected
+mkdir -p $OUT_DIR
 #Do intersection
-for f in $(seq 0 14);
+cd $WORK_DIR
+for f in *.bed;
 do
-	MAIN_DIR=$GENOMIC_FEATURES/TFBS$f
-	rm -rf $MAIN_DIR
+	filename=${f%%.*}
+  	echo $filename
+  	f2=$OUT_DIR/$filename"_i.bed"
+	f3=$OUT_DIR/$filename"_v.bed"
+	f4=$OUT_DIR/$filename".csv"
+	bedtools intersect -a $f1 -b $f -wa -wb -sorted |awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$4"\t"$9}' >$f2
+	bedtools intersect -a $f1 -b $f -v -sorted|awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$4"\t"0}'>$f3
+	cat $f2 $f3 |awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5}' | gsed -e "s/^chr//"| gsort -k 1,1 -k2,2n --parallel=8  -S 50%> $f4
+	rm $f2 $f3
 done
 
 

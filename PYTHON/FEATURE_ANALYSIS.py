@@ -91,125 +91,6 @@ def plot_5_classes_of_K_by_histogram():
         #     ax.set_xlim(-1, 1)
         # plt.savefig("../FIGURES/FEATURE_ANALYSIS/Hist_" + str(repli) + ".png", dpi=200)
 
-def barplot_of_ChrMM_for_each_k_categories():
-    fig_dir = os.path.join(FIGURE_DIR, "ChromHMM")
-    if not os.path.exists(fig_dir):
-            os.makedirs(fig_dir)
-    MCLASS_LABELS = ['empty', 'slowest k', 'slow k', 'middle k', 'fast k', 'fastest k']
-    cm = plt.get_cmap('gist_rainbow')
-    for repli in REPLIS:
-        repli_dir = os.path.join(ChrmoHMM_DIR, "Rep" + str(repli))
-
-        fig, axs = plt.subplots(1, len(Tile_window_szs),figsize=(len(Tile_window_szs) * EACH_SUB_FIG_SIZE, EACH_SUB_FIG_SIZE))
-
-        for tid, tile_window_sz in enumerate(Tile_window_szs):
-            if len(Tile_window_szs) != 1:
-                ax = axs[tid]
-            else:
-                ax = axs
-            width = 0.35
-            ind = np.arange(len(CLASS_LABELS))
-            chrHMMs = np.arange(NUMBER_OF_CHRMM_CLASS)
-            class_data = np.zeros((len(chrHMMs), len(ind)))
-            for cid, class_label in enumerate(CLASS_LABELS):
-                file_name = 'tile_' + str(tile_window_sz) + "_" + class_label
-                f_path = os.path.join(repli_dir, file_name + ".csv")
-                df = pd.read_csv(f_path, sep=',', header=None).values
-                classes = df[:, 3]
-                unique, counts = np.unique(classes, return_counts=True)
-                unique=unique.astype(int)
-                normed_counts = counts/float(counts.sum())
-                unique_dc = dict(zip(unique, normed_counts))
-                for cls in chrHMMs:
-                    class_data[cls][cid] = unique_dc[cls+1]
-            pls = []
-            for cls in chrHMMs:
-                if cls == 0:
-                    pl = ax.bar(ind, tuple(list(class_data[cls, :])), width)
-                else:
-                    sum_prev= list(np.sum(class_data[0 : cls, :], axis = 0))
-                    pl = ax.bar(ind, tuple(list(class_data[cls, :])), width, bottom=tuple(sum_prev))
-                for item in pl:
-                    item.set_color(cm(1. * cls / NUMBER_OF_CHRMM_CLASS))
-                pls.append(pl)
-            ax.set_xlabel('ChromHMM Class')
-            ax.set_ylabel('Percentage')
-            ax.set_xticklabels(MCLASS_LABELS)
-            ax.set_yticks(np.arange(0.2, 1.1, 0.2))
-            ax.set_title(TILE_LABLES[tid] + " REP " + str(repli))
-            if tid == 0:
-                box = ax.get_position()
-                ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
-                ax.legend(tuple(pls), tuple(ChrmoHMM_LABELS), loc='center left', bbox_to_anchor=(1, 0.5))
-        plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep"+str(repli) +"_PERCENTAGE_OF_K.png"), dpi=200)
-
-def barplot_of_ChrMM_for_each_k_categories_separately():
-    fig_dir = os.path.join(FIGURE_DIR, "ChromHMM")
-    if not os.path.exists(fig_dir):
-            os.makedirs(fig_dir)
-    MCLASS_LABELS = ['empty', 'slowest k', 'slow k', 'middle k', 'fast k', 'fastest k']
-    cm = plt.get_cmap('gist_rainbow')
-    repli = 55
-    repli_dir = os.path.join(ChrmoHMM_DIR, "Rep" + str(repli))
-    N_ROW = 3
-    N_COL = 5
-    fig, axs = plt.subplots(N_ROW, N_COL,figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
-
-    ind = np.arange(len(CLASS_LABELS))
-    chrHMMs = np.arange(NUMBER_OF_CHRMM_CLASS)
-    class_data = np.zeros((len(chrHMMs), len(ind)))
-    class_data_non_normed = np.zeros((len(chrHMMs), len(ind)))
-    for cid, class_label in enumerate(CLASS_LABELS):
-        file_name = "tile_2_" + class_label
-        f_path = os.path.join(repli_dir, file_name + ".csv")
-        df = pd.read_csv(f_path, sep=',', header=None).values
-        classes = df[:, 3]
-        unique, counts = np.unique(classes, return_counts=True)
-        unique = unique.astype(int)
-        normed_counts = counts / float(counts.sum())
-        unique_dc = dict(zip(unique, normed_counts))
-        unique_dc_non_normed = dict(zip(unique, counts))
-        for cls in chrHMMs:
-            class_data[cls][cid] = unique_dc[cls + 1]
-            class_data_non_normed[cls][cid] = unique_dc_non_normed[cls + 1]
-
-    for cls in chrHMMs:
-        row = int(cls / N_COL)
-        col = int(cls % N_COL)
-        ax = axs[row][col]
-        y_max = np.max(class_data[cls, :]) + 0.08
-        pl = ax.bar(ind, tuple(list(class_data[cls, :])), 0.35)
-        for item in pl:
-            item.set_color(cm(1. * cls / NUMBER_OF_CHRMM_CLASS))
-        for cid, class_label in enumerate(CLASS_LABELS):
-            ax.text(ind[cid] - 0.2, class_data[cls, cid] + 0.002, str(round(class_data[cls, cid] * 100.0, 2)) + "%", fontsize= 14, weight="bold")
-        if col == 0:
-            ax.set_ylabel('Percentage')
-        ax.set_xticklabels(MCLASS_LABELS, fontsize=18)
-        ax.set_ylim(0, y_max)
-        ax.set_title(ChrmoHMM_LABELS[cls], fontsize=22)
-    plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep" + str(repli) + "_SEP_PERCENTAGE_OF_K.png"), dpi=200)
-
-    fig, axs = plt.subplots(N_ROW, N_COL,figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
-    for cls in chrHMMs:
-        row = int(cls / N_COL)
-        col = int(cls % N_COL)
-        ax = axs[row][col]
-        class_data_non_normed[cls, :] = class_data_non_normed[cls, :] / np.sum(class_data_non_normed[cls, :])
-        y_max = np.max(class_data_non_normed[cls, :]) + 0.08
-        pl = ax.bar(ind, tuple(list(class_data_non_normed[cls, :])), 0.35)
-        for item in pl:
-            item.set_color(cm(1. * cls / NUMBER_OF_CHRMM_CLASS))
-        for cid, class_label in enumerate(CLASS_LABELS):
-            ax.text(ind[cid] - 0.2, class_data_non_normed[cls, cid] + 0.002, str(round(class_data_non_normed[cls, cid] * 100.0, 2)) + "%", fontsize= 14, weight="bold")
-        if col == 0:
-            ax.set_ylabel('Percentage')
-        ax.set_xticklabels(MCLASS_LABELS, fontsize=18)
-        y_max = np.max(class_data_non_normed[cls, :]) + 0.08
-        ax.set_ylim(0, y_max)
-        ax.set_title(ChrmoHMM_LABELS[cls], fontsize=22)
-    plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep" + str(repli) + "_SEP_PERCENTAGE_OF_ChroMM.png"), dpi=200)
-
 def plot_hist_of_distances_between_ks():
     MAX_DIST = 2000
     repli = 55
@@ -693,8 +574,9 @@ def plot_K_in_methy_context():
         ax.set_ylim(0, y_max)
         ax.set_title(METHY_LABELS[cls], fontsize=22)
     plt.savefig(os.path.join(fig_dir, "METHY_PERCENTAGE_OF_METHY_SEP.png"), dpi=200)
-def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
-    K_fp = os.path.join(ORIGIN_DATA_DIR, "Rep55", "tile_2.csv")
+
+def get_percentile_index_arr(repli):
+    K_fp = os.path.join(ORIGIN_DATA_DIR, "Rep" + str(repli), "tile_2.csv")
     k_col_index = 2
     percs = []
     df = pd.read_csv(K_fp, sep=',', header=None).values
@@ -716,6 +598,11 @@ def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
     for p_idx in range(0, N_CLASSES):
         df_indexs = np.logical_and(ks > percentiles[p_idx], ks < percentiles[p_idx + 1])
         df_indexs_arr.append(df_indexs)
+    return df_indexs_arr, df
+
+def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
+    repli = 55
+    df_indexs_arr, _ = get_percentile_index_arr(repli)
     ind = np.arange(len(CLASS_LABELS))
     cm = plt.get_cmap('gist_rainbow')
     input_fps = []
@@ -729,12 +616,18 @@ def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
     Max_NROW = 3
     N_SUBFIG_PER_FIG = Max_NROW * N_COL
     NFIG = int(math.ceil(N_FILES / N_SUBFIG_PER_FIG))
+    fig_dir = os.path.join(FIGURE_DIR, SUB_DIR_NAME)
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir)
     for i in range(NFIG):
-        fig_fp = os.path.join(FIGURE_DIR, SUB_DIR_NAME + "_" + str(i) + ".png")
+        if NFIG > 1:
+            fig_fp = os.path.join(fig_dir, SUB_DIR_NAME + "_" + str(i) + ".png")
+        else:
+            fig_fp = os.path.join(fig_dir, SUB_DIR_NAME + ".png")
         base_index = i * N_SUBFIG_PER_FIG
         N_remaining_files = N_FILES - base_index
         N_ROW = int(math.ceil((N_remaining_files) / N_COL)) if N_remaining_files <= N_SUBFIG_PER_FIG else Max_NROW
-        print(N_ROW)
+
         fig, axs = plt.subplots(N_ROW, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
         SUB_FIG_RANGE = N_SUBFIG_PER_FIG if N_remaining_files > N_SUBFIG_PER_FIG else N_remaining_files
 
@@ -756,7 +649,7 @@ def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
                 # int_data = df[intersect]
                 cls_count = np.sum(categories[intersect, -1])
                 class_data.append(cls_count)
-            class_data=np.array(class_data)
+            class_data = np.array(class_data)
             class_data = class_data[:] / np.sum(class_data)
             y_max = np.max(class_data) + 0.08
             pl = ax.bar(ind, tuple(list(class_data)), 0.35)
@@ -764,16 +657,105 @@ def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
                 item.set_color(cm(1. * j / SUB_FIG_RANGE))
             for cid, class_label in enumerate(CLASS_LABELS):
                 ax.text(ind[cid] - 0.2, class_data[cid] + 0.002,
-                        str(round(class_data[cid] * 100.0, 2)) + "%", fontsize=14, weight="bold")
+                        str(round(class_data[cid] * 100.0, 2)) + "%", fontsize=10, weight="bold")
             if col == 0:
-                ax.set_ylabel("Percentage", fontsize=22)
+                ax.set_ylabel("Percentage", fontsize=18)
             ax.set_xticks(ind)
-            ax.set_xticklabels(CLASS_LABELS, fontsize=18)
-            ax.set_xlim(-0.5, len(CLASS_LABELS)-0.5)
+            ax.set_xticklabels(CLASS_LABELS, fontsize=12)
+            ax.set_xlim(-0.5, len(CLASS_LABELS) - 0.5)
             ax.set_ylim(0, y_max)
-            ax.set_title(file_names[index], fontsize=22)
+            ax.set_title(file_names[index], fontsize=18)
         plt.savefig(fig_fp, dpi=200)
 
+def plot_ChrMM():
+    repli = 55
+    fig_dir = os.path.join(FIGURE_DIR, "ChromHMM")
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir)
+    cm = plt.get_cmap('gist_rainbow')
+    ind = np.arange(len(CLASS_LABELS))
+    chrHMMs = np.arange(NUMBER_OF_CHRMM_CLASS)
+    chrHMM_col_id = 4
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    df_indexs_arr, df = get_percentile_index_arr(repli)
+
+    class_data = np.zeros((len(chrHMMs), len(ind)))
+    class_data_non_normed = np.zeros((len(chrHMMs), len(ind)))
+    class_fp = os.path.join(GENOMIC_FEATURES_DIR, "ChrmoHMM", "K_intersected", "HmmH1hescHMM.csv")
+    categories = pd.read_csv(class_fp, sep="\t", header=None).values
+    for cid, class_label in enumerate(CLASS_LABELS):
+        classes = categories[df_indexs_arr[cid], -1]
+        unique, counts = np.unique(classes, return_counts=True)
+        unique = unique.astype(int)
+        normed_counts = counts / float(counts.sum())
+        unique_dc = dict(zip(unique, normed_counts))
+        unique_dc_non_normed = dict(zip(unique, counts))
+        for cls in chrHMMs:
+            class_data[cls][cid] = unique_dc[cls + 1]
+            class_data_non_normed[cls][cid] = unique_dc_non_normed[cls + 1]
+    pls = []
+    for cls in chrHMMs:
+        if cls == 0:
+            pl = ax.bar(ind, tuple(list(class_data[cls, :])), 0.35)
+        else:
+            sum_prev = list(np.sum(class_data[0: cls, :], axis=0))
+            pl = ax.bar(ind, tuple(list(class_data[cls, :])), 0.35, bottom=tuple(sum_prev))
+        for item in pl:
+            item.set_color(cm(1. * cls / NUMBER_OF_CHRMM_CLASS))
+        pls.append(pl)
+    ax.set_xlabel('ChromHMM Class')
+    ax.set_ylabel('Percentage')
+    ax.set_xticks(ind)
+    ax.set_xticklabels(CLASS_LABELS)
+    ax.set_yticks(np.arange(0.2, 1.1, 0.2))
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
+    ax.legend(tuple(pls), tuple(ChrmoHMM_LABELS), loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep" + str(repli) + "_PERCENTAGE_OF_K.png"), dpi=200)
+
+    N_ROW = 3
+    N_COL = 5
+    fig, axs = plt.subplots(N_ROW, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
+    for cls in chrHMMs:
+        row = int(cls / N_COL)
+        col = int(cls % N_COL)
+        ax = axs[row][col]
+        y_max = np.max(class_data[cls, :]) + 0.08
+        pl = ax.bar(ind, tuple(list(class_data[cls, :])), 0.35)
+        for item in pl:
+            item.set_color(cm(1. * cls / NUMBER_OF_CHRMM_CLASS))
+        for cid, class_label in enumerate(CLASS_LABELS):
+            ax.text(ind[cid] - 0.2, class_data[cls, cid] + 0.002, str(round(class_data[cls, cid] * 100.0, 2)) + "%",
+                    fontsize=14, weight="bold")
+        if col == 0:
+            ax.set_ylabel('Percentage')
+        ax.set_xticks(ind)
+        ax.set_xticklabels(CLASS_LABELS, fontsize=10)
+        ax.set_ylim(0, y_max)
+        ax.set_title(ChrmoHMM_LABELS[cls], fontsize=18)
+    plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep" + str(repli) + "_SEP_PERCENTAGE_OF_K.png"), dpi=200)
+
+    fig, axs = plt.subplots(N_ROW, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
+    for cls in chrHMMs:
+        row = int(cls / N_COL)
+        col = int(cls % N_COL)
+        ax = axs[row][col]
+        class_data_non_normed[cls, :] = class_data_non_normed[cls, :] / np.sum(class_data_non_normed[cls, :])
+        y_max = np.max(class_data_non_normed[cls, :]) + 0.08
+        pl = ax.bar(ind, tuple(list(class_data_non_normed[cls, :])), 0.35)
+        for item in pl:
+            item.set_color(cm(1. * cls / NUMBER_OF_CHRMM_CLASS))
+        for cid, class_label in enumerate(CLASS_LABELS):
+            ax.text(ind[cid] - 0.2, class_data_non_normed[cls, cid] + 0.002,
+                    str(round(class_data_non_normed[cls, cid] * 100.0, 2)) + "%", fontsize=14, weight="bold")
+        if col == 0:
+            ax.set_ylabel('Percentage')
+        ax.set_xticks(ind)
+        ax.set_xticklabels(CLASS_LABELS, fontsize=10)
+        y_max = np.max(class_data_non_normed[cls, :]) + 0.08
+        ax.set_ylim(0, y_max)
+        ax.set_title(ChrmoHMM_LABELS[cls], fontsize=18)
+    plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep" + str(repli) + "_SEP_PERCENTAGE_OF_ChroMM.png"), dpi=200)
 if __name__ == "__main__":
     data_fp = '/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS/CLUSTER_OF_Ks/1/chr1.csv'
     # cluster_k_by_distance(data_fp)
