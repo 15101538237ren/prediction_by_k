@@ -4,6 +4,7 @@ import numpy as np
 import seaborn as sns
 import os, re, math
 import matplotlib.pyplot as plt
+from scipy import stats
 #%matplotlib inline
 
 sns.set(color_codes=True)
@@ -11,20 +12,23 @@ sns.set(color_codes=True)
 CLASS_LABELS = ['slowest', 'slow', 'middle', 'fast', 'fastest']
 DATA_SET_DIR = '/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS/'
 GENOMIC_FEATURES_DIR = '/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/Genomic_Features/'
-
+def mkdirs(dir_paths):
+    for dir_path in dir_paths:
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 ORIGIN_DATA_DIR = os.path.join(DATA_SET_DIR, 'ORIGIN_DATA')
 CLASSIFIED_DATA_DIR = os.path.join(DATA_SET_DIR, 'CLASSIFIED_DATA')
 ChrmoHMM_DIR = os.path.join(DATA_SET_DIR, 'ChrmoHMM_INTERSECTED')
 HISTONE_DIR = os.path.join(DATA_SET_DIR, 'HISTONE_INTERSECTED')
 K_METHY_DIR = os.path.join(DATA_SET_DIR, "K_Methylation_Analysis")
 FIGURE_DIR = "../FIGURES/FEATURE_ANALYSIS"
-
-Tile_window_szs = [2]  #  100, 500, 1000
-TILE_LABLES = ['Site K'] # 'Tile 100bp', 'Tile 500bp', 'Tile 1000bp'
-CG_CONTENT_LABELS = ["LCG < 30%", "ICG 30%-60%", "HCG > 60%"]
 HISTONE_TYPES = ["H3K4me1", "H3K4me3", "H3K9Me3", "H3K27ac", "H3K27Me3", "H3K36me3"]
 ChrmoHMM_LABELS="Active Promoter","Weak Promoter","Poised Promoter","Strong Enhancer","Strong Enhancer","Weak Enhancer","Weak Enhancer","Insulator","Txn Transition","Txn Elongation","Weak Txn","Repressed","Heterochrom/lo","Repetitive/CNV","Repetitive/CNV"
+mkdirs([ORIGIN_DATA_DIR, CLASSIFIED_DATA_DIR])
 
+Tile_window_szs = [2]  # 50, 100, 200, 500, 1000, 2000, 5000 , 100, 500, 1000
+TILE_LABLES = ['Site K'] # 'Tile 200bp',, 'Tile 2000bp' , 'Tile 100bp', 'Tile 500bp', 'Tile 1000bp'
+CG_CONTENT_LABELS = ["LCG < 30%", "ICG 30%-60%", "HCG > 60%"]
 REPLIS = [55]#1, 41
 EACH_SUB_FIG_SIZE = 5
 N_CLASSES = len(CLASS_LABELS)
@@ -32,11 +36,6 @@ NUMBER_OF_CHRMM_CLASS = 15
 percentile_names = [str(i*20) for i in range(1, N_CLASSES + 1)]
 CHROMOSOMES = [i for i in range(1, 23)]
 
-def mkdirs(dir_paths):
-    for dir_path in dir_paths:
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-mkdirs([ORIGIN_DATA_DIR, CLASSIFIED_DATA_DIR])
 
 def plot_5_classes_of_K_by_histogram():
     for repli in REPLIS:
@@ -92,9 +91,6 @@ def plot_5_classes_of_K_by_histogram():
         # plt.savefig("../FIGURES/FEATURE_ANALYSIS/Hist_" + str(repli) + ".png", dpi=200)
 
 def barplot_of_ChrMM_for_each_k_categories():
-    fig_dir = os.path.join(FIGURE_DIR, "ChromHMM")
-    if not os.path.exists(fig_dir):
-            os.makedirs(fig_dir)
     MCLASS_LABELS = ['empty', 'slowest k', 'slow k', 'middle k', 'fast k', 'fastest k']
     cm = plt.get_cmap('gist_rainbow')
     for repli in REPLIS:
@@ -141,8 +137,49 @@ def barplot_of_ChrMM_for_each_k_categories():
                 box = ax.get_position()
                 ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
                 ax.legend(tuple(pls), tuple(ChrmoHMM_LABELS), loc='center left', bbox_to_anchor=(1, 0.5))
-        plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep"+str(repli) +"_PERCENTAGE_OF_K.png"), dpi=200)
+        plt.savefig("../FIGURES/FEATURE_ANALYSIS/BARPLOT_" + str(repli) + ".png", dpi=200)
+def barplot_of_Histone_Modification_for_each_k_categories():
+    MCLASS_LABELS = ['slowest k', 'slow k', 'middle k', 'fast k', 'fastest k']
+    cm = plt.get_cmap('gist_rainbow')
+    repli = 55
+    N_ROW = len(Tile_window_szs)
+    N_COL = len(HISTONE_TYPES)
+    fig, axs = plt.subplots(N_ROW, N_COL,figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
+    for tid, tile_window_sz in enumerate(Tile_window_szs):
 
+        for hid, histone in enumerate(HISTONE_TYPES):
+            repli_dir = os.path.join(HISTONE_DIR, histone, "Rep" + str(repli))
+
+            ind = np.arange(len(CLASS_LABELS))
+            class_data = np.zeros((len(HISTONE_TYPES), len(ind)))
+            sum_n = 0. #sum_of_the_number_of_ks
+            for cid, class_label in enumerate(CLASS_LABELS):
+                file_name = "tile_2_" + class_label
+                f_path = os.path.join(repli_dir, file_name + ".csv")
+                df = pd.read_csv(f_path, sep=',', header=None).values
+                k_counts = df[:, 2].shape[0]
+                sum_n += k_counts
+                class_data[hid, cid] = k_counts
+            class_data[hid, :] /= sum_n
+
+            ax =axs[hid] if len(Tile_window_szs) == 1 else axs[tid][hid]
+            y_max = np.max(class_data[hid, :]) + 0.08
+            pl = ax.bar(ind, tuple(list(class_data[hid, :])), width=0.35)
+
+            for item in pl:
+                item.set_color(cm(1. * hid / len(HISTONE_TYPES)))
+            for cid, class_label in enumerate(CLASS_LABELS):
+                ax.text(ind[cid] - 0.2, class_data[hid, cid] + 0.002,
+                        str(round(class_data[hid, cid] * 100.0, 2)) + "%", fontsize=8, weight="bold")
+            if hid == 0: #Col 1
+                ax.set_ylabel(TILE_LABLES[tid] + 'Percentage')
+            if tid == 0: #Row 1
+                ax.set_title(histone, fontsize=22)
+            ax.set_yticks(np.arange(0.2, 1.1, 0.2))
+            ax.set_xticks(ind)
+            ax.set_xticklabels(MCLASS_LABELS)
+            ax.set_ylim(0, y_max)
+    plt.savefig("../FIGURES/FEATURE_ANALYSIS/Histone_Rep" + str(repli) + ".png", dpi=200)
 def barplot_of_ChrMM_for_each_k_categories_separately():
     fig_dir = os.path.join(FIGURE_DIR, "ChromHMM")
     if not os.path.exists(fig_dir):
@@ -201,19 +238,17 @@ def barplot_of_ChrMM_for_each_k_categories_separately():
         for item in pl:
             item.set_color(cm(1. * cls / NUMBER_OF_CHRMM_CLASS))
         for cid, class_label in enumerate(CLASS_LABELS):
-            ax.text(ind[cid] - 0.2, class_data_non_normed[cls, cid] + 0.002, str(round(class_data_non_normed[cls, cid] * 100.0, 2)) + "%", fontsize= 14, weight="bold")
+            ax.text(ind[cid] - 0.2, class_data[cls, cid] + 0.002, str(round(class_data[cls, cid] * 100.0, 2)) + "%", fontsize= 14, weight="bold")
         if col == 0:
             ax.set_ylabel('Percentage')
         ax.set_xticklabels(MCLASS_LABELS, fontsize=18)
-        y_max = np.max(class_data_non_normed[cls, :]) + 0.08
         ax.set_ylim(0, y_max)
         ax.set_title(ChrmoHMM_LABELS[cls], fontsize=22)
     plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep" + str(repli) + "_SEP_PERCENTAGE_OF_ChroMM.png"), dpi=200)
 
 def plot_hist_of_distances_between_ks():
     MAX_DIST = 2000
-    repli = 55
-    data_fp = os.path.join(ORIGIN_DATA_DIR, 'Rep' + str(repli), 'tile_2.csv')
+    data_fp = os.path.join(ORIGIN_DATA_DIR, 'Rep1', 'tile_2.csv')
     df = pd.read_csv(data_fp, sep=',', header=None).values
     ks = df[:, 2]
     ks[ks <= 0] = 0.001
@@ -242,7 +277,7 @@ def plot_hist_of_distances_between_ks():
     ax.set_title("Histogram of the distance between K")
 
     ax2 = axs[1]
-    ax2.hist2d(K_pairs[:, 0], K_pairs[:, 1], bins=(30, 30))
+    ax2.hist2d(K_pairs[:, 0], K_pairs[:, 1],bins=20)
     ax2.set_xlabel('log10(K)')
     ax2.set_ylabel('log10(K) neighbor')
     ax2.set_xlim(-1, 1)
@@ -251,19 +286,19 @@ def plot_hist_of_distances_between_ks():
 
     plt.savefig("../FIGURES/FEATURE_ANALYSIS/Hist_of_Distance.png", dpi=200)
 
-def hist_for_logk_distribution(percentile):
-    fig, axs = plt.subplots(1, 1, figsize=(4, 3))
-    repli = 55
+def hist_for_logk_distribution():
+    fig, axs = plt.subplots(4, 1, figsize=(6, 8))
+    # ind = np.arange(len(Tile_window_szs))
+    # logk_arr = []
     for tid, tile_window_sz in enumerate(Tile_window_szs):
-        data_fp = os.path.join(ORIGIN_DATA_DIR, 'Rep' + str(repli), 'tile_' + str(tile_window_sz) + '.csv')
+        data_fp = os.path.join(ORIGIN_DATA_DIR, 'Rep1', 'tile_' + str(tile_window_sz) + '.csv')
         df = pd.read_csv(data_fp, sep=',', header=None).values
         ks = df[:, 2]
         ks[ks <= 0] = 0.001
         ks = np.log10(ks)
-        ax = axs
-        ax.hist(ks, 40, density=True, facecolor='b', alpha=0.75)
-        ax.axvline(x=np.percentile(ks, percentile), color='r')
-        ax.text(np.percentile(ks, percentile), 1, str(percentile) + " percentile", color="r")
+        ax = axs[tid]
+        ax.hist(ks, 20, density=True, facecolor='b', alpha=0.75)
+        ax.axvline(x=np.percentile(ks, 20), color='r')
         ax.set_ylabel('Probability')
         ax.set_xlim(-0.75, 1)
         ax.set_title("log10(k) in " + TILE_LABLES[tid])
@@ -272,6 +307,25 @@ def hist_for_logk_distribution(percentile):
         else:
             ax.set_xlabel('log10(k)')
     plt.savefig("../FIGURES/FEATURE_ANALYSIS/VIOLIN_PLOT.png", dpi=200)
+
+def plot_for_logk_and_methy():
+    data_fp = os.path.join(K_METHY_DIR, "K_and_methy_intersected.csv")
+
+    plt.figure(figsize=(6, 6), dpi=120)
+    df = pd.read_csv(data_fp, sep=',', header=None).values
+    ks = df[:, 2]
+    methys = df[:, 3]
+    ks[ks <= 0] = 0.001
+    ks = np.log10(ks)
+    corr_coef = np.corrcoef(ks,methys)[0][1]
+    h = plt.hist2d(methys, ks, bins=20)
+    plt.colorbar(h[3])
+    plt.xlabel('Methylation level')
+    plt.ylabel('log10(K)')
+    plt.ylim(-1, 1)
+    plt.xlim(0, 1)
+    plt.title("Hist2d of Methy vs log10(K) with Corr" + str(round(float(corr_coef), 2)))
+    plt.savefig("../FIGURES/FEATURE_ANALYSIS/METHY_VS_K.png", dpi=200)
 
 # The input should be a csv file with columns: chr_i, start_site, k
 def cluster_k_by_distance(data_fp, maximum_distance_winthin_cluster=500, minimum_number_of_k_per_cluster=3):
@@ -319,6 +373,33 @@ def cluster_k_by_distance(data_fp, maximum_distance_winthin_cluster=500, minimum
         data_to_store[cid + 1]['entropy_d'] = -np.sum(pD * np.log2(pD))
     print(data_to_store)
 
+def classify_the_ks(input_fp, output_filename, k_col_index): # k_col_index starts from 0
+    percs = []
+    df = pd.read_csv(input_fp, sep=',', header=None).values
+
+    ks = df[:, k_col_index]
+    ks[ks <= 0] = 0.001
+    ks = np.log10(ks)
+    df[:, 2] = ks
+
+    percentiles = [-2.0]
+    percentile_names = []
+    for i in range(1, N_CLASSES + 1):
+        percentile = i * 20
+        percentile_names.append(str(percentile))
+        percentiles.append(float(np.percentile(ks, percentile)))
+    percs.append(percentiles[1:])
+
+    class_datas = []
+    for p_idx in range(0, N_CLASSES):
+        df_indexs = np.logical_and(ks > percentiles[p_idx], ks < percentiles[p_idx + 1])
+        class_datas.append(df[df_indexs, :])
+
+    for c_i, class_data in enumerate(class_datas):
+        out_fp = os.path.join(output_filename + "_" + CLASS_LABELS[c_i] + '.csv')
+        np.savetxt(out_fp, class_data[:, :])
+        print("finish %s" % out_fp)
+
 def plot_gc_content_percentage_in_each_K_class(wrting_data=False):
     CG_CONTENT_LABELS = ["LCG < 30%", "ICG 30%-60%", "HCG > 60%"]
     MCLASS_LABELS = ['empty', 'slowest k', 'slow k', 'middle k', 'fast k', 'fastest k']
@@ -339,133 +420,95 @@ def plot_gc_content_percentage_in_each_K_class(wrting_data=False):
     fig_dir = os.path.join(FIGURE_DIR, "CG_CONTENT")
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir)
-    r = 25
-    input_fp = os.path.join(indir, "55_flank_" + str(r) + "_GC.csv")
-    output_filename = os.path.join(outdir, "55_flank_" + str(r) + "_GC")
 
-    percs = []
-    df = pd.read_csv(input_fp, sep=',', header=None).values
+    for rid, r in enumerate(radius):
+        input_fp = os.path.join(indir, "55_flank_" + str(r) + "_GC.csv")
+        output_filename = os.path.join(outdir, "55_flank_" + str(r) + "_GC")
 
-    ks = df[:, k_col_index]
-    ks[ks <= 0] = 0.001
-    ks = np.log10(ks)
-    df[:, k_col_index] = ks
+        percs = []
+        df = pd.read_csv(input_fp, sep=',', header=None).values
 
-    percentiles = [-2.0]
-    percentile_names = []
-    for i in range(1, N_CLASSES + 1):
-        percentile = i * 20
-        percentile_names.append(str(percentile))
-        percentiles.append(float(np.percentile(ks, percentile)))
-    percs.append(percentiles[1:])
+        ks = df[:, k_col_index]
+        ks[ks <= 0] = 0.001
+        ks = np.log10(ks)
+        df[:, k_col_index] = ks
 
-    class_datas = []
-    for p_idx in range(0, N_CLASSES):
-        df_indexs = np.logical_and(ks > percentiles[p_idx], ks < percentiles[p_idx + 1])
-        origin_data = df[df_indexs, :]
-        cg_category = np.ones((origin_data.shape[0], 1)).reshape(-1, 1) * 2.0
-        lcg_indexs = origin_data[:, cg_col_index] < lcg
-        hcg_indexs = origin_data[:, cg_col_index] > hcg
-        cg_category[lcg_indexs] = 1
-        cg_category[hcg_indexs] = 3
-        class_datas.append(np.concatenate((origin_data, cg_category), axis=1))
-    # wring data
-    if wrting_data:
-        for c_i, class_data in enumerate(class_datas):
-            out_fp = os.path.join(output_filename + "_" + CLASS_LABELS[c_i] + '.csv')
-            np.savetxt(out_fp, class_data[:, :], fmt="%d,%d,%d,%.4f,%.4f,%.4f,%d", delimiter='\n')
-            print("finish %s" % out_fp)
-    fig = plt.figure(figsize=(10, 6), dpi=120)
+        percentiles = [-2.0]
+        percentile_names = []
+        for i in range(1, N_CLASSES + 1):
+            percentile = i * 20
+            percentile_names.append(str(percentile))
+            percentiles.append(float(np.percentile(ks, percentile)))
+        percs.append(percentiles[1:])
 
-    ind = np.arange(len(CLASS_LABELS))
-    CGS = np.arange(len(CG_CONTENT_LABELS))
+        class_datas = []
+        for p_idx in range(0, N_CLASSES):
+            df_indexs = np.logical_and(ks > percentiles[p_idx], ks < percentiles[p_idx + 1])
+            origin_data = df[df_indexs, :]
+            cg_category = np.ones((origin_data.shape[0], 1)).reshape(-1, 1) * 2.0
+            lcg_indexs = origin_data[:, cg_col_index] < lcg
+            hcg_indexs = origin_data[:, cg_col_index] > hcg
+            cg_category[lcg_indexs] = 1
+            cg_category[hcg_indexs] = 3
+            class_datas.append(np.concatenate((origin_data, cg_category), axis=1))
+        # wring data
+        if wrting_data:
+            for c_i, class_data in enumerate(class_datas):
+                out_fp = os.path.join(output_filename + "_" + CLASS_LABELS[c_i] + '.csv')
+                np.savetxt(out_fp, class_data[:, :], fmt="%d,%d,%d,%.4f,%.4f,%.4f,%d", delimiter='\n')
+                print("finish %s" % out_fp)
+        fig = plt.figure(num=1, figsize=(10, 6), dpi=120)
 
-    class_data = np.zeros((len(CGS), len(ind)))
-    class_data_non_normed = np.zeros((len(CGS), len(ind)))
-    for cid, class_label in enumerate(CLASS_LABELS):
-        origin_data = class_datas[cid]
-        cg_classes = origin_data[:, -1].astype(int)
+        ind = np.arange(len(CLASS_LABELS))
+        CGS = np.arange(len(CG_CONTENT_LABELS))
 
-        unique, counts = np.unique(cg_classes, return_counts=True)
-        unique = unique.astype(int)
-        normed_counts = counts / float(counts.sum())
-        unique_dc = dict(zip(unique, normed_counts))
-        unique_dc_non_normed = dict(zip(unique, counts))
+        class_data = np.zeros((len(CGS), len(ind)))
+        for cid, class_label in enumerate(CLASS_LABELS):
+            origin_data = class_datas[cid]
+            cg_classes = origin_data[:, -1].astype(int)
+
+            unique, counts = np.unique(cg_classes, return_counts=True)
+            unique = unique.astype(int)
+            normed_counts = counts / float(counts.sum())
+            unique_dc = dict(zip(unique, normed_counts))
+            for cls in CGS:
+                class_data[cls][cid] = unique_dc[cls + 1]
+        pls = []
         for cls in CGS:
-            class_data[cls][cid] = unique_dc[cls + 1]
-            class_data_non_normed[cls][cid] = unique_dc_non_normed[cls + 1]
-    pls = []
-    for cls in CGS:
-        if cls == 0:
-            pl = plt.bar(ind, tuple(list(class_data[cls, :])), 0.35)
-        else:
-            sum_prev = list(np.sum(class_data[0: cls, :], axis=0))
-            pl = plt.bar(ind, tuple(list(class_data[cls, :])), 0.35, bottom=tuple(sum_prev))
-        for item in pl:
-            item.set_color(cm(1. * cls / len(CG_CONTENT_LABELS)))
-        pls.append(pl)
-    plt.xlabel('K Class')
-    plt.ylabel('Percentage')
-    plt.xticks(ind, CLASS_LABELS)
-    plt.yticks(np.arange(0.2, 1.1, 0.2))
-    plt.legend(tuple(pls), tuple(CG_CONTENT_LABELS))
-    plt.title("Percentage of CG Content in Each K class with local radius" + str(r))
-    plt.savefig(os.path.join(fig_dir, "CG_CONTENT_PERCENTAGE_OF_K_R_" + str(r) + ".png"), dpi=200)
+            if cls == 0:
+                pl = plt.bar(ind, tuple(list(class_data[cls, :])), 0.35)
+            else:
+                sum_prev = list(np.sum(class_data[0: cls, :], axis=0))
+                pl = plt.bar(ind, tuple(list(class_data[cls, :])), 0.35, bottom=tuple(sum_prev))
+            for item in pl:
+                item.set_color(cm(1. * cls / len(CG_CONTENT_LABELS)))
+            pls.append(pl)
+        plt.xlabel('K Class')
+        plt.ylabel('Percentage')
+        plt.xticks(ind, CLASS_LABELS)
+        plt.yticks(np.arange(0.2, 1.1, 0.2))
+        plt.legend(tuple(pls), tuple(CG_CONTENT_LABELS), loc='center left', bbox_to_anchor=(1, 0.5))
+        plt.title("Percentage of CG Content in Each K class with local radius" + str(r))
+        plt.savefig(os.path.join(fig_dir, "CG_CONTENT_PERCENTAGE_OF_K_R_" + str(r) + ".png"), dpi=200)
 
-    N_COL = len(CGS)
-    fig, axs = plt.subplots(1, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, 1 * EACH_SUB_FIG_SIZE))
-    for cls in CGS:
-        ax = axs[cls]
-        y_max = np.max(class_data[cls, :]) + 0.08
-        pl = ax.bar(ind, tuple(list(class_data[cls, :])), 0.35)
-        for item in pl:
-            item.set_color(cm(1. * cls / N_COL))
-        for cid, class_label in enumerate(CLASS_LABELS):
-            ax.text(ind[cid] - 0.2, class_data[cls, cid] + 0.002, str(round(class_data[cls, cid] * 100.0, 2)) + "%",
-                    fontsize=14, weight="bold")
-        if cls == 0:
-            ax.set_ylabel("Percentage" + ", CG local radius " + str(r), fontsize=22)
-        ax.set_xticklabels(MCLASS_LABELS, fontsize=18)
-        ax.set_ylim(0, y_max)
-        ax.set_title(CG_CONTENT_LABELS[cls], fontsize=22)
-    plt.savefig(os.path.join(fig_dir, "CG_CONTENT_PERCENTAGE_OF_K_SEP_R_" + str(r) + ".png"), dpi=200)
+        N_COL = len(CGS)
+        fig, axs = plt.subplots(1, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, 1 * EACH_SUB_FIG_SIZE))
+        for cls in CGS:
+            ax = axs[cls]
+            y_max = np.max(class_data[cls, :]) + 0.08
+            pl = ax.bar(ind, tuple(list(class_data[cls, :])), 0.35)
+            for item in pl:
+                item.set_color(cm(1. * cls / N_COL))
+            for cid, class_label in enumerate(CLASS_LABELS):
+                ax.text(ind[cid] - 0.2, class_data[cls, cid] + 0.002, str(round(class_data[cls, cid] * 100.0, 2)) + "%",
+                        fontsize=14, weight="bold")
+            if cls == 0:
+                ax.set_ylabel("Percentage" + ", CG local radius " + str(r), fontsize=22)
+            ax.set_xticklabels(MCLASS_LABELS, fontsize=18)
+            ax.set_ylim(0, y_max)
+            ax.set_title(CG_CONTENT_LABELS[cls], fontsize=22)
+        plt.savefig(os.path.join(fig_dir, "CG_CONTENT_PERCENTAGE_OF_K_SEP_R_" + str(r) + ".png"), dpi=200)
 
-    fig, axs = plt.subplots(1, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, 1 * EACH_SUB_FIG_SIZE))
-    for cls in CGS:
-        ax = axs[cls]
-        class_data_non_normed[cls, :] = class_data_non_normed[cls, :] / np.sum(class_data_non_normed[cls, :])
-        y_max = np.max(class_data_non_normed[cls, :]) + 0.08
-        pl = ax.bar(ind, tuple(list(class_data_non_normed[cls, :])), 0.35)
-        for item in pl:
-            item.set_color(cm(1. * cls / N_COL))
-        for cid, class_label in enumerate(CLASS_LABELS):
-            ax.text(ind[cid] - 0.2, class_data_non_normed[cls, cid] + 0.002,
-                    str(round(class_data_non_normed[cls, cid] * 100.0, 2)) + "%", fontsize=14, weight="bold")
-        if cls == 0:
-            ax.set_ylabel("Percentage" + ", CG local radius " + str(r), fontsize=22)
-        ax.set_xticklabels(MCLASS_LABELS, fontsize=18)
-        ax.set_ylim(0, y_max)
-        ax.set_title(CG_CONTENT_LABELS[cls], fontsize=22)
-    plt.savefig(os.path.join(fig_dir, "CG_CONTENT_PERCENTAGE_OF_CG_SEP_R_" + str(r) + ".png"), dpi=200)
-
-def plot_for_logk_and_methy():
-    data_fp = os.path.join(K_METHY_DIR, "K_and_methy_intersected.csv")
-
-    plt.figure(figsize=(6, 6), dpi=120)
-    df = pd.read_csv(data_fp, sep=',', header=None).values
-    ks = df[:, 2]
-    methys = df[:, 3]
-    ks[ks <= 0] = 0.001
-    ks = np.log10(ks)
-    corr_coef = np.corrcoef(ks,methys)[0][1]
-    h = plt.hist2d(methys, ks, bins=20)
-    plt.colorbar(h[3])
-    plt.xlabel('Methylation level')
-    plt.ylabel('log10(K)')
-    plt.ylim(-1, 1)
-    plt.xlim(0, 1)
-    plt.title("Hist2d of Methy vs log10(K) with Corr" + str(round(float(corr_coef), 2)))
-    plt.savefig("../FIGURES/FEATURE_ANALYSIS/METHY_VS_K.png", dpi=200)
 
 def plot_K_in_promoter_or_CGI_context():
     PRO_CGI_LABELS = ["Promoter CGI", "Promoter Non-CGI", "Non-Promter CGI", "Non-Promter Non-CGI"]
@@ -570,129 +613,46 @@ def plot_K_in_promoter_or_CGI_context():
         ax.set_title(PRO_CGI_LABELS[cls], fontsize=22)
     plt.savefig(os.path.join(fig_dir, "CGI_Promoter_R_" + str(r) + ".png"), dpi=200)
 
-def plot_K_in_methy_context():
-    indir = os.path.join(DATA_SET_DIR, "K_Methylation_Analysis")
-    METHY_LABELS = ["Unmethy: < 0.3", "IM: 0.3-0.7", "Methylated: > 0.7"]
-    cm = plt.get_cmap('gist_rainbow')
+def extract_promoter(bed_fp, out_fp, upstream = 2000, after_tss = 0):
+    ltws = []
+    with open(bed_fp, "r") as file:
+        lines = [line for line in file]
 
-    k_col_index = 2
-    methy_col_index = 3
+        for line_idx, line in enumerate(lines):
+            chr_i, start, end, strand = re.split("\s+", line.strip("\n"))[0:4]
+            if strand =='+':
+                start = int(start)
+                end = start + after_tss
+                start = start - upstream
+            else:
+                end = int(end)
+                start = end - after_tss
+                end = end + upstream
 
-    unmethy_threshold = 0.3  # threshold between unmethylated and intermediate methylated
-    methy_threshold = 0.7  # threshold between intermediate methylated and methylated
+            ltw = "\t".join([chr_i, str(start), str(end), strand])
+            ltws.append(ltw)
 
-    fig_dir = os.path.join(FIGURE_DIR, "K_METHYLATION")
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir)
+    with open(out_fp, "w") as file:
+        file.write(("\n").join(ltws))
+        file.write("\n")
+        print("write %s successful!" % out_fp)
 
-    input_fp = os.path.join(indir, "K_and_methy_intersected.csv")
+def separate_TFBS_by_name(bed_fp, out_dir):
+    TF_dict = {}
+    with open(bed_fp, "r") as file:
+        lines = [line for line in file]
 
-    # Classify K by percentile and label K by methylation level
-    percs = []
-    df = pd.read_csv(input_fp, sep=',', header=None).values
+        for line_idx, line in enumerate(lines):
+            _, _, _, tf_name = re.split("\s+", line.strip("\n"))[0:4]
+            if tf_name not in TF_dict.keys():
+                TF_dict[tf_name] =[]
+            TF_dict[tf_name].append(line)
+    for key, lines in TF_dict.items():
+        out_fp = os.path.join(out_dir, key + ".bed")
+        with open(out_fp, "w") as file:
+            file.write(("").join(lines))
+            print("write %s successful!" % out_fp)
 
-    ks = df[:, k_col_index]
-
-    ks[ks <= 0] = 0.001
-    ks = np.log10(ks)
-    df[:, k_col_index] = ks
-
-    percentiles = [-2.0]
-    percentile_names = []
-    for i in range(1, N_CLASSES + 1):
-        percentile = i * 20
-        percentile_names.append(str(percentile))
-        percentiles.append(float(np.percentile(ks, percentile)))
-    percs.append(percentiles[1:])
-
-    class_datas = []
-    for p_idx in range(0, N_CLASSES):
-        df_indexs = np.logical_and(ks > percentiles[p_idx], ks < percentiles[p_idx + 1])
-        origin_data = df[df_indexs, :]
-
-        methy_category = np.ones((origin_data.shape[0], 1)).reshape(-1, 1) * 2.0
-
-        unmethy_indexs = origin_data[:, methy_col_index] < unmethy_threshold
-        methy_category[unmethy_indexs] = 1
-
-        methy_indexs = origin_data[:, methy_col_index] > methy_threshold
-        methy_category[methy_indexs] = 3
-
-        class_datas.append(np.concatenate((origin_data, methy_category), axis=1))
-
-    fig = plt.figure(figsize=(10, 6), dpi=120)
-    ind = np.arange(len(CLASS_LABELS))
-    CGS = np.arange(len(METHY_LABELS))
-
-    class_data = np.zeros((len(CGS), len(ind)))
-    class_data_non_normed = np.zeros((len(CGS), len(ind)))
-    for cid, class_label in enumerate(CLASS_LABELS):
-        origin_data = class_datas[cid]
-        cg_classes = origin_data[:, -1].astype(int)
-
-        unique, counts = np.unique(cg_classes, return_counts=True)
-        unique = unique.astype(int)
-        normed_counts = counts / float(counts.sum())
-        unique_dc = dict(zip(unique, normed_counts))
-        unique_dc_non_normed = dict(zip(unique, counts))
-        for cls in CGS:
-            class_data[cls][cid] = unique_dc[cls + 1]
-            class_data_non_normed[cls][cid] = unique_dc_non_normed[cls + 1]
-    pls = []
-    for cls in CGS:
-        if cls == 0:
-            pl = plt.bar(ind, tuple(list(class_data[cls, :])), 0.35)
-        else:
-            sum_prev = list(np.sum(class_data[0: cls, :], axis=0))
-            pl = plt.bar(ind, tuple(list(class_data[cls, :])), 0.35, bottom=tuple(sum_prev))
-        for item in pl:
-            item.set_color(cm(1. * cls / len(METHY_LABELS)))
-        pls.append(pl)
-    plt.xlabel('K Class')
-    plt.ylabel('Percentage')
-    plt.xticks(ind, CLASS_LABELS)
-    plt.yticks(np.arange(0.2, 1.1, 0.2))
-    plt.legend(tuple(pls), tuple(METHY_LABELS))
-    plt.title("Percentage of Methylation in Each K class")
-    plt.savefig(os.path.join(fig_dir, "METHY_PERCENTAGE_OF_K.png"), dpi=200)
-
-    N_COL = len(CGS)
-    fig, axs = plt.subplots(1, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, 1 * EACH_SUB_FIG_SIZE))
-    for cls in CGS:
-        ax = axs[cls]
-        y_max = np.max(class_data[cls, :]) + 0.08
-        pl = ax.bar(ind, tuple(list(class_data[cls, :])), 0.35)
-        for item in pl:
-            item.set_color(cm(1. * cls / N_COL))
-        for cid, class_label in enumerate(CLASS_LABELS):
-            ax.text(ind[cid] - 0.2, class_data[cls, cid] + 0.002, str(round(class_data[cls, cid] * 100.0, 2)) + "%",
-                    fontsize=14, weight="bold")
-        if cls == 0:
-            ax.set_ylabel("Percentage", fontsize=22)
-        ax.set_xticklabels(CLASS_LABELS, fontsize=18)
-        ax.set_ylim(0, y_max)
-        ax.set_title(METHY_LABELS[cls], fontsize=22)
-    plt.savefig(os.path.join(fig_dir, "METHY_PERCENTAGE_OF_K_SEP.png"), dpi=200)
-
-    fig, axs = plt.subplots(1, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, 1 * EACH_SUB_FIG_SIZE))
-    for cls in CGS:
-        ax = axs[cls]
-        class_data_non_normed[cls, :] = class_data_non_normed[cls, :] / np.sum(class_data_non_normed[cls, :])
-        y_max = np.max(class_data_non_normed[cls, :]) + 0.08
-        pl = ax.bar(ind, tuple(list(class_data_non_normed[cls, :])), 0.35)
-        for item in pl:
-            item.set_color(cm(1. * cls / N_COL))
-        for cid, class_label in enumerate(CLASS_LABELS):
-            ax.text(ind[cid] - 0.2, class_data_non_normed[cls, cid] + 0.002,
-                    str(round(class_data_non_normed[cls, cid] * 100.0, 2)) + "%",
-                    fontsize=14, weight="bold")
-        if cls == 0:
-            ax.set_ylabel("Percentage", fontsize=22)
-        ax.set_xticks(ind)
-        ax.set_xticklabels(CLASS_LABELS, fontsize=18)
-        ax.set_ylim(0, y_max)
-        ax.set_title(METHY_LABELS[cls], fontsize=22)
-    plt.savefig(os.path.join(fig_dir, "METHY_PERCENTAGE_OF_METHY_SEP.png"), dpi=200)
 def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
     K_fp = os.path.join(ORIGIN_DATA_DIR, "Rep55", "tile_2.csv")
     k_col_index = 2
@@ -733,7 +693,7 @@ def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
         fig_fp = os.path.join(FIGURE_DIR, SUB_DIR_NAME + "_" + str(i) + ".png")
         base_index = i * N_SUBFIG_PER_FIG
         N_remaining_files = N_FILES - base_index
-        N_ROW = int(math.ceil((N_remaining_files) / N_COL)) if N_remaining_files <= N_SUBFIG_PER_FIG else Max_NROW
+        N_ROW = int(math.ceil((N_remaining_files) / N_COL)) if N_remaining_files <= N_SUBFIG_PER_FIG else N_SUBFIG_PER_FIG
         print(N_ROW)
         fig, axs = plt.subplots(N_ROW, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
         SUB_FIG_RANGE = N_SUBFIG_PER_FIG if N_remaining_files > N_SUBFIG_PER_FIG else N_remaining_files
@@ -773,7 +733,6 @@ def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
             ax.set_ylim(0, y_max)
             ax.set_title(file_names[index], fontsize=22)
         plt.savefig(fig_fp, dpi=200)
-
 if __name__ == "__main__":
     data_fp = '/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS/CLUSTER_OF_Ks/1/chr1.csv'
     # cluster_k_by_distance(data_fp)
