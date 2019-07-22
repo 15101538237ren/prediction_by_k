@@ -4,11 +4,16 @@ import numpy as np
 import seaborn as sns
 import os, re, math
 import matplotlib.pyplot as plt
+from sklearn.metrics import mutual_info_score
 #%matplotlib inline
 
 sns.set(color_codes=True)
 
-CLASS_LABELS = ['slowest', 'slow', 'middle', 'fast', 'fastest']
+def mkdirs(dir_paths):
+    for dir_path in dir_paths:
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+
 DATA_SET_DIR = '/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS/'
 GENOMIC_FEATURES_DIR = '/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/Genomic_Features/'
 
@@ -17,8 +22,17 @@ CLASSIFIED_DATA_DIR = os.path.join(DATA_SET_DIR, 'CLASSIFIED_DATA')
 ChrmoHMM_DIR = os.path.join(DATA_SET_DIR, 'ChrmoHMM_INTERSECTED')
 HISTONE_DIR = os.path.join(DATA_SET_DIR, 'HISTONE_INTERSECTED')
 K_METHY_DIR = os.path.join(DATA_SET_DIR, "K_Methylation_Analysis")
-FIGURE_DIR = "../FIGURES/FEATURE_ANALYSIS"
 
+K_analyze = False
+HISTOGRAM = False # plot histogram or the distribution by pdf
+NBIN=50
+MI_BIN=10
+sub_fig_dir= "K" if K_analyze else "Methy"
+intersected_dir_name = "K_intersected" if K_analyze else "Methy_intersected"
+CLASS_LABELS = ['slowest', 'slow', 'middle', 'fast', 'fastest'] if K_analyze else ['<25%', '25%-50%', '50%-65%', '>65%']
+FIGURE_DIR = os.path.join("../FIGURES/FEATURE_ANALYSIS/", sub_fig_dir)
+if not os.path.exists(FIGURE_DIR):
+    os.makedirs(FIGURE_DIR)
 Tile_window_szs = [2]  #  100, 500, 1000
 TILE_LABLES = ['Site K'] # 'Tile 100bp', 'Tile 500bp', 'Tile 1000bp'
 CG_CONTENT_LABELS = ["LCG < 30%", "ICG 30%-60%", "HCG > 60%"]
@@ -32,64 +46,9 @@ NUMBER_OF_CHRMM_CLASS = 15
 percentile_names = [str(i*20) for i in range(1, N_CLASSES + 1)]
 CHROMOSOMES = [i for i in range(1, 23)]
 
-def mkdirs(dir_paths):
-    for dir_path in dir_paths:
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-mkdirs([ORIGIN_DATA_DIR, CLASSIFIED_DATA_DIR])
+mkdirs([ORIGIN_DATA_DIR, CLASSIFIED_DATA_DIR, FIGURE_DIR])
 
-def plot_5_classes_of_K_by_histogram():
-    for repli in REPLIS:
-        repli_dir = os.path.join(ORIGIN_DATA_DIR, "Rep" + str(repli))
-        classified_repli_dir = os.path.join(CLASSIFIED_DATA_DIR, "Rep" + str(repli))
-        mkdirs([repli_dir, classified_repli_dir])
-        k_arr = []
-        percs = []
-        for tile_window_sz in Tile_window_szs:
-            file_name = 'tile_' + str(tile_window_sz)
-            f_path = os.path.join(repli_dir, file_name + ".csv")
-            df = pd.read_csv(f_path, sep=',', header=None).values
-
-            ks = df[:, 2]
-            ks[ks <= 0] = 0.001
-            ks = np.log10(ks)
-            df[:, 2] = ks
-
-            percentiles = [-2.0]
-            percentile_names = []
-            for i in range(1, N_CLASSES + 1):
-                percentile = i * 20
-                percentile_names.append(str(percentile))
-                percentiles.append(float(np.percentile(ks, percentile)))
-            percs.append(percentiles[1:])
-
-            class_datas = []
-            for p_idx in range(0, N_CLASSES):
-                df_indexs = np.logical_and(ks > percentiles[p_idx], ks < percentiles[p_idx + 1])
-                class_datas.append(df[df_indexs, :])
-
-            for c_i, class_data in enumerate(class_datas):
-                (row_len, col_len) = class_data.shape
-                bed_data = np.zeros((row_len, col_len + 1))
-                bed_data[:, [0, 1, 3]] = class_data
-                bed_data[:, 2] = class_data[:, 1] + 1
-                out_fp = os.path.join(classified_repli_dir, file_name + "_" + CLASS_LABELS[c_i] + '.bed')
-                np.savetxt(out_fp, bed_data[:, :], fmt="chr%d\t%d\t%d\t%.4f", delimiter='\n')
-                print("finish %s" % out_fp)
-            k_arr.append(ks)
-
-        # fig, axs = plt.subplots(1, len(Tile_window_szs),
-        #                         figsize=(len(Tile_window_szs) * EACH_SUB_FIG_SIZE, EACH_SUB_FIG_SIZE))
-        # for tile_idx, tile_window_sz in enumerate(Tile_window_szs):
-        #     ax = axs[tile_idx]
-        #     ax.hist(k_arr[tile_idx], 50, density=True, facecolor='b', alpha=0.75)
-        #     for percentile in percs[tile_idx]:
-        #         ax.axvline(x=percentile, color='r')
-        #     ax.set_xlabel('log10(k)')
-        #     ax.set_ylabel('Probability')
-        #     ax.set_title('Histogram of ' + TILE_LABLES[tile_idx] + " REP " + str(repli))
-        #     ax.set_xlim(-1, 1)
-        # plt.savefig("../FIGURES/FEATURE_ANALYSIS/Hist_" + str(repli) + ".png", dpi=200)
+mkdirs([ORIGIN_DATA_DIR, CLASSIFIED_DATA_DIR, FIGURE_DIR])
 
 def plot_hist_of_distances_between_ks():
     MAX_DIST = 2000
@@ -576,33 +535,70 @@ def plot_K_in_methy_context():
     plt.savefig(os.path.join(fig_dir, "METHY_PERCENTAGE_OF_METHY_SEP.png"), dpi=200)
 
 def get_percentile_index_arr(repli):
-    K_fp = os.path.join(ORIGIN_DATA_DIR, "Rep" + str(repli), "tile_2.csv")
-    k_col_index = 2
-    percs = []
-    df = pd.read_csv(K_fp, sep=',', header=None).values
+    col_index = 2
+    if K_analyze:
+        K_fp = os.path.join(ORIGIN_DATA_DIR, "Rep" + str(repli), "tile_2.csv")
+        df = pd.read_csv(K_fp, sep=',', header=None).values
+        ks = df[:, col_index]
+        ks[ks <= 0] = 0.001
+        ks = np.log10(ks)
+        df[:, col_index] = ks
 
-    ks = df[:, k_col_index]
-    ks[ks <= 0] = 0.001
-    ks = np.log10(ks)
-    df[:, k_col_index] = ks
-
-    percentiles = [-2.0]
-    percentile_names = []
-    for i in range(1, N_CLASSES + 1):
-        percentile = i * 20
-        percentile_names.append(str(percentile))
-        percentiles.append(float(np.percentile(ks, percentile)))
-    percs.append(percentiles[1:])
-
+        percentiles = [-2.0]
+        percentiles_to_query = np.array([i * 20 for i in range(1, N_CLASSES + 1)])
+        percentiles_results = list(np.percentile(ks, percentiles_to_query))
+        for item in percentiles_results:
+            percentiles.append(float(item))
+    else:
+        K_fp = os.path.join(DATA_SET_DIR, "GSM1112841.csv")
+        df = pd.read_csv(K_fp, sep='\t', header=None).values
+        ks = df[:, col_index]
+        ks[ks < 0] = 0
+        ks[ks > 1] = 1
+        percentiles = [0.0] #, 0.2, 0.8, 0.9, 1.0
+        percentiles_to_query = np.array([25, 50, 65, 100])
+        #print(percentiles_to_query)
+        percentiles_results = list(np.percentile(ks, percentiles_to_query))
+        for item in percentiles_results:
+            percentiles.append(float(item))
+    #print(percentiles)
     df_indexs_arr = []
     for p_idx in range(0, N_CLASSES):
         df_indexs = np.logical_and(ks > percentiles[p_idx], ks < percentiles[p_idx + 1])
         df_indexs_arr.append(df_indexs)
-    return df_indexs_arr, df
+    return df_indexs_arr, df, percentiles
+
+def hist_K_with_5_percentiles():
+    fig_dir = os.path.join(FIGURE_DIR, "Others")
+    mkdirs([fig_dir])
+    repli = 55
+    k_col_index = 2
+    df_indexs_arr, df, percentiles = get_percentile_index_arr(repli)
+    fig, ax = plt.subplots(1, 1,figsize=(8, 6))
+    ax.hist(df[:, k_col_index], 50, density=True, facecolor='b', alpha=0.75)
+    for percentile in percentiles:
+        ax.axvline(x=percentile, color='r')
+    if K_analyze:
+        xlabel = 'log10(k)'
+        xlim = [-1, 1]
+    else:
+        xlabel = 'methylation'
+        xlim = [0, 1]
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel('Probability')
+    ax.set_title("Histogram of REP " + str(repli))
+    ax.set_xlim(xlim)
+    plt.savefig(os.path.join(fig_dir, "Hist_" + str(repli) + ".png"), dpi=200)
+
+
+def calc_MI(x, y, bins):
+    c_xy = np.histogram2d(x, y, bins)[0]
+    mi = mutual_info_score(None, None, contingency=c_xy)
+    return mi
 
 def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
     repli = 55
-    df_indexs_arr, _ = get_percentile_index_arr(repli)
+    df_indexs_arr, df, _ = get_percentile_index_arr(repli)
     ind = np.arange(len(CLASS_LABELS))
     cm = plt.get_cmap('gist_rainbow')
     input_fps = []
@@ -666,22 +662,57 @@ def plot_K_hist_in_different_markers(BASE_DIR, SUB_DIR_NAME):
             ax.set_ylim(0, y_max)
             ax.set_title(file_names[index], fontsize=18)
         plt.savefig(fig_fp, dpi=200)
+        if NFIG > 1:
+            fig_fp = os.path.join(fig_dir, SUB_DIR_NAME + "_DIST_" + str(i) + ".png")
+        else:
+            fig_fp = os.path.join(fig_dir, SUB_DIR_NAME + "_DIST.png")
+        # Plot the pdf
+        if K_analyze:
+            xlim = [-1, 1]
+        else:
+            xlim = [0, 1]
+        fig, axs = plt.subplots(N_ROW, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
+        for j in range(SUB_FIG_RANGE):
+            row = j // N_COL
+            col = j % N_COL
+            if N_ROW == 1:
+                ax = axs[col]
+            else:
+                ax = axs[row][col]
+            index = base_index + j
+            class_fp = input_fps[index]
+            categories = pd.read_csv(class_fp, sep="\t", header=None).values
+            class_data = []
+            ks_indexs = categories[:, -1] == 1
+            ks = df[ks_indexs, -1]
+            xhist, _, _ = ax.hist(df[:, -1], bins=NBIN, density=True, color='black', edgecolor='black', alpha=0.5,
+                                  linewidth=0.5)  #
+            yhist, _, _ = ax.hist(ks, bins=NBIN, density=True, color=cm(1. * j / SUB_FIG_RANGE), edgecolor='black',
+                                  alpha=0.5, linewidth=0.5)  #
+            max_mi = calc_MI(xhist, xhist, MI_BIN)
+            mi = calc_MI(xhist, yhist, MI_BIN) / max_mi
+            mi = 1 - mi
+            print(file_names[index] + "\t" + str(round(float(mi), 2)))
+            ax.text(float(np.mean(np.array(xlim))), max([float(np.max(xhist)), float(np.max(yhist))]) * 0.75,
+                    "MI: " + str(round(float(mi), 2)), color='black', fontsize=18)
+            ax.set_ylabel('Probability')
+            ax.set_xlim(xlim)
+            ax.set_title(file_names[index], fontsize=18)
+        plt.savefig(fig_fp, dpi=200)
 
 def plot_ChrMM():
     repli = 55
     fig_dir = os.path.join(FIGURE_DIR, "ChromHMM")
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir)
+    mkdirs([fig_dir])
     cm = plt.get_cmap('gist_rainbow')
     ind = np.arange(len(CLASS_LABELS))
     chrHMMs = np.arange(NUMBER_OF_CHRMM_CLASS)
-    chrHMM_col_id = 4
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-    df_indexs_arr, df = get_percentile_index_arr(repli)
+    df_indexs_arr, df, percentiles = get_percentile_index_arr(repli)
 
     class_data = np.zeros((len(chrHMMs), len(ind)))
     class_data_non_normed = np.zeros((len(chrHMMs), len(ind)))
-    class_fp = os.path.join(GENOMIC_FEATURES_DIR, "ChrmoHMM", "K_intersected", "HmmH1hescHMM.csv")
+    class_fp = os.path.join(GENOMIC_FEATURES_DIR, "ChrmoHMM", intersected_dir_name, "HmmH1hescHMM.csv")
     categories = pd.read_csv(class_fp, sep="\t", header=None).values
     for cid, class_label in enumerate(CLASS_LABELS):
         classes = categories[df_indexs_arr[cid], -1]
@@ -716,6 +747,7 @@ def plot_ChrMM():
     N_ROW = 3
     N_COL = 5
     fig, axs = plt.subplots(N_ROW, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
+
     for cls in chrHMMs:
         row = int(cls / N_COL)
         col = int(cls % N_COL)
@@ -756,6 +788,37 @@ def plot_ChrMM():
         ax.set_ylim(0, y_max)
         ax.set_title(ChrmoHMM_LABELS[cls], fontsize=18)
     plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep" + str(repli) + "_SEP_PERCENTAGE_OF_ChroMM.png"), dpi=200)
+
+    # Plot the pdf
+    fig, axs = plt.subplots(N_ROW, N_COL, figsize=(N_COL * EACH_SUB_FIG_SIZE, N_ROW * EACH_SUB_FIG_SIZE))
+    if K_analyze:
+        xlim = [-1, 1]
+    else:
+        xlim = [0, 1]
+
+    for cls in chrHMMs:
+        row = int(cls / N_COL)
+        col = int(cls % N_COL)
+        ax = axs[row][col]
+        ks_indexs = categories[:, -1] == (cls + 1)
+        ks = df[ks_indexs, -1]
+        xhist, _, _ = ax.hist(df[:, -1], bins=NBIN, density=True, color='black', edgecolor='black', alpha=0.5,
+                              linewidth=0.5)  #
+        yhist, _, _ = ax.hist(ks, bins=NBIN, density=True, color=cm(1. * cls / NUMBER_OF_CHRMM_CLASS),
+                              edgecolor='black', alpha=0.5, linewidth=0.5)  #
+        max_mi = calc_MI(xhist, xhist, MI_BIN)
+        mi = calc_MI(xhist, yhist, MI_BIN)/max_mi
+        mi = 1 - mi
+        print(ChrmoHMM_LABELS[cls] + "\t" + str(round(float(mi), 2)))
+
+        ax.text(float(np.mean(np.array(xlim))), max([float(np.max(xhist)), float(np.max(yhist))]) * 0.75,
+                "MI: " + str(round(float(mi), 2)), color='black', fontsize=18)
+
+        ax.set_ylabel('Probability')
+        ax.set_xlim(xlim)
+        ax.set_title(ChrmoHMM_LABELS[cls], fontsize=18)
+    plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep" + str(repli) + "_DIST_ChroMM.png"), dpi=200)
+
 if __name__ == "__main__":
     data_fp = '/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS/CLUSTER_OF_Ks/1/chr1.csv'
     # cluster_k_by_distance(data_fp)
@@ -766,4 +829,7 @@ if __name__ == "__main__":
     # REGION = "Histone_Modification"
     # plot_K_hist_in_different_markers(os.path.join(GENOMIC_FEATURES_DIR, REGION, "K_intersected"), REGION)
     # barplot_of_Histone_Modification_for_each_k_categories()
-    barplot_of_ChrMM_for_each_k_categories_separately()
+    plot_ChrMM()
+    regions = ["General", "Genomic_Regions", "Histone_Modification", "TFBS", "Histone_Modification_Enzyme"]  #
+    for REGION in regions:
+        plot_K_hist_in_different_markers(os.path.join(GENOMIC_FEATURES_DIR, REGION, intersected_dir_name), REGION)

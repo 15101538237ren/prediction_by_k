@@ -272,15 +272,3 @@ do
     gunzip $file_name
 done
 
-f1=$K_RATES_DIR/55.bed
-ffn=$PREPROCESS_DIR/merged_k_and_methy.bed
-
-# gsort -k 1,1 -k2,2n --parallel=8  -S 50% -i $f1>$f1".sorted"
-# rm -f $f1
-# mv $f1".sorted" $f1
-# gsort -k 1,1 -k2,2n --parallel=8  -S 50% -i $f14>$f14".sorted"
-# rm -f $f14
-# mv $f14".sorted" $f14
-bedtools intersect -a $f1 -b $f14 -f 0.5 -wa -wb -sorted| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$ffn
-awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$9}' $ffn|gsed 's/\t/,/g'| gsed -e "s/^$prefix//">$ffn".csv"
-

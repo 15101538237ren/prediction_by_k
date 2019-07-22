@@ -332,4 +332,5 @@ if __name__ == "__main__":
     #     generate_table(PERF_DIR, klen, performances)
     # #
     # # create_mini_data_set(OUT_DIR)
-    preprocess_ChromeHMM()
+    # preprocess_ChromeHMM()
+    pass

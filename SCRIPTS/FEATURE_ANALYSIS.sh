@@ -299,12 +299,125 @@ do
 	rm $f2 $f3
 done
 
+#f_wgbs analysis #Preprocessing Methylation raw data on server side
+indir=/pub/hongleir/data/Methy-data
+f1=$indir/GSM1112841.bed
+f2=$indir/GSM1112841_processed.bed
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$5}' $f1|sort -k 1,1 -k2,2n | bedtools merge -c 4 -o mean >$f2
+
+# local side
+FEATURE_ANALYSIS=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS
+scp hongleir@hpc.oit.uci.edu:$f2 $FEATURE_ANALYSIS
+
+f1=$FEATURE_ANALYSIS/GSM1112841_processed.bed
+WORK_DIR=$GENOMIC_FEATURES/ChrmoHMM
+OUT_DIR=$WORK_DIR/Methy_intersected
+mkdir -p $OUT_DIR
+#Do intersection
+cd $WORK_DIR
+for f in *.bed;
+do
+	filename=${f%%.*}
+  	echo $filename
+  	f2=$OUT_DIR/$filename"_i.bed"
+	f3=$OUT_DIR/$filename"_v.bed"
+	f4=$OUT_DIR/$filename".csv"
+	bedtools intersect -a $f1 -b $f -wa -wb -sorted|awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$4"\t"$8}'>$f2
+	bedtools intersect -a $f1 -b $f -v -sorted|awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$4"\t"0}'>$f3
+	cat $f2 $f3 |awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5}' | gsed -e "s/^chr//"| gsort -k 1,1 -k2,2n --parallel=8  -S 50%> $f4
+	rm $f2 $f3
+done
+
+#Preprocessing Methylation raw data
+FEATURE_ANALYSIS=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS
+GENOMIC_FEATURES=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/Genomic_Features
+f1=$FEATURE_ANALYSIS/GSM1112841_processed.bed
+TMP=$FEATURE_ANALYSIS/TMP
+mkdir -p $TMP
+declare -a CHRS=('chr1' 'chr2' 'chr3' 'chr4' 'chr5' 'chr6' 'chr7' 'chr8' 'chr9' 'chr10' 'chr11' 'chr12' 'chr13' 'chr14' 'chr15' 'chr16' 'chr17' 'chr18' 'chr19' 'chr20' 'chr21' 'chr22')
+
+for chr in "${CHRS[@]}"; #
+do
+    bedextract $chr $f1 >$TMP/$chr.txt; 
+done
+cat $TMP/chr*.txt | gsort -k 1,1 -k2,2n --parallel=8  -S 50% | awk 'BEGIN {FS="\t"; OFS=","} {print $0}'>$f1".filtered"
+rm -f $f1 $TMP/chr*.txt
+mv $f1".filtered" $f1
+
+KRATE_DIR=/Users/emmanueldollinger/MatlabProjects/K_Estimation/DATA/Repli_BS/K_RATES
+f1=$FEATURE_ANALYSIS/GSM1112841_processed.bed
+f2=$KRATE_DIR/55.bed
+f3=$FEATURE_ANALYSIS/GSM1112841_55_intersected.bed
+bedtools intersect -a $f2 -b $f1 -wa -wb -sorted| awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$9}'| gsort -k 1,1 -k2,2n --parallel=8  -S 50%|bedtools merge -c 4 -o max >$f3
+
+FEATURE_ANALYSIS=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS
+GENOMIC_FEATURES=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/Genomic_Features
+f1=$FEATURE_ANALYSIS/GSM1112841_55_intersected.bed
+hmm=0
+WORK_DIR=$GENOMIC_FEATURES/Histone_Modification_Enzyme
+OUT_DIR=$WORK_DIR/Methy_intersected
+mkdir -p $OUT_DIR
+cd $WORK_DIR
+
+#Do intersection
+for f in *.bed;
+do
+	filename=${f%%.*}
+  	echo $filename
+	f2=$OUT_DIR/$filename"_i.bed"
+	f3=$OUT_DIR/$filename"_v.bed"
+	f4=$OUT_DIR/$filename".csv"
+	if [ $hmm -eq 1 ]
+	then
+		echo "hmm = 1"
+		bedtools intersect -a $f1 -b $f -wa -wb -sorted  | awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$4"\t"$8}' | gsort -k 1,1 -k2,2n --parallel=8  -S 50%|bedtools merge -c 4,5 -o max >$f2
+	else
+		echo "hmm != 1"
+		bedtools intersect -a $f1 -b $f -wa -sorted| gsort -k 1,1 -k2,2n --parallel=8  -S 50%|bedtools merge -c 4 -o max | awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$4"\t"1}'>$f2
+	fi
+	bedtools intersect -a $f1 -b $f -v -sorted|awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$4"\t"0}'>$f3
+	cat $f2 $f3 |awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4"\t"$5}' | gsed -e "s/^chr//"| gsort -k 1,1 -k2,2n --parallel=8  -S 50%> $f4
+	rm $f2 $f3
+done
+
+#Compare the correctness of the ordering 
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2}' $f1| gsed -e "s/^chr//"> $f1".tmp"
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2}' $f4> $f4".tmp"
+diff $f1".tmp" $f4".tmp"
+
+FEATURE_ANALYSIS=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS
+GENOMIC_FEATURES=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/Genomic_Features
+f1=$FEATURE_ANALYSIS/GSM1112841_55_intersected.bed
+# rm $f1".tmp" $f4".tmp"
+f1_p=$FEATURE_ANALYSIS/GSM1112841.csv
+awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$4}' $f1| gsed -e "s/^chr//"| gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f1_p
 
 
 
 
+#DMR METHYLATION ANALYSIS
 
+FEATURE_ANALYSIS=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS
+METHY_DIR=$FEATURE_ANALYSIS/Methy
+TMP_DIR=$METHY_DIR/TMP
+mkdir -p $TMP_DIR
+cd $TMP_DIR
+for f in GSM1112839.bed;
+do
+	filename=${f%%.*}
+  	echo $filename
+	# awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$5}' $f| gsort -k 1,1 -k2,2n --parallel=8  -S 50%| bedtools merge -c 4 -o mean >$TMP_DIR/$f
+	awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$4*100.0}' $f | gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f".percent"
+done
 
+OLD_DIR=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/Genomic_Features
+cd $OLD_DIR
 
+for dir_name in *;
+do
+	echo $dir_name
+	dist=
+	mkdir -p
+done
 
 
