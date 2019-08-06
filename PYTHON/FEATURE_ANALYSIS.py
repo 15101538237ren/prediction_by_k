@@ -113,51 +113,6 @@ def hist_for_logk_distribution(percentile):
             ax.set_xlabel('log10(k)')
     plt.savefig("../FIGURES/FEATURE_ANALYSIS/VIOLIN_PLOT.png", dpi=200)
 
-# The input should be a csv file with columns: chr_i, start_site, k
-def cluster_k_by_distance(data_fp, maximum_distance_winthin_cluster=500, minimum_number_of_k_per_cluster=3):
-    df = pd.read_csv(data_fp, sep=',', header=None).values
-    cords = df[:, 0].astype(int)
-    ks = df[:, 1]
-    N_SITES = cords.shape[0] #number of the CpG sites
-    cluster_ids = np.arange(0, N_SITES) #initiate the cluster ids
-    ind_current_site = 0
-    cluster_ks = {}
-    cluster_ds = {}
-    while ind_current_site < N_SITES - 1:
-        curr_loc = cords[ind_current_site]
-        ind_next_site = ind_current_site + 1
-        for ind_nxt in range(ind_next_site, N_SITES):
-            distance= cords[ind_nxt] - curr_loc
-            if distance > maximum_distance_winthin_cluster or (ind_nxt == N_SITES - 1 and distance <= maximum_distance_winthin_cluster):
-                cluster_ids[ind_current_site: ind_nxt] = ind_current_site
-                cluster_ks[ind_current_site] = ks[ind_current_site: ind_nxt]
-                cluster_ds[ind_current_site] = cords[ind_current_site + 1: ind_nxt] - cords[ind_current_site: ind_nxt - 1]
-                ind_current_site = ind_nxt # update the index of the nex site which has less than maximum_distance_winthin_cluster with current index site
-                break
-    unique, counts = np.unique(cluster_ids, return_counts=True)
-    unique_dc = dict(zip(unique, counts))
-    clusters_ids_interested = unique[counts >= minimum_number_of_k_per_cluster]
-
-    data_to_store = {}
-    for cid in np.arange(0, clusters_ids_interested.shape[0]):
-        data_to_store[cid + 1] = {}
-        k_in_this_cluster = cluster_ks[clusters_ids_interested[cid]]
-        pK = k_in_this_cluster / k_in_this_cluster.sum()
-
-        d_in_this_cluster = cluster_ds[clusters_ids_interested[cid]]
-        pD = d_in_this_cluster / d_in_this_cluster.sum()
-
-        data_to_store[cid + 1]['ks'] = k_in_this_cluster
-        data_to_store[cid + 1]['num_k'] = k_in_this_cluster.shape[0]
-        data_to_store[cid + 1]['mean_k'] = np.mean(k_in_this_cluster)
-        data_to_store[cid + 1]['std_k'] = np.std(k_in_this_cluster)
-        data_to_store[cid + 1]['entropy_k'] = -np.sum(pK * np.log2(pK))
-        data_to_store[cid + 1]['ds'] = cluster_ds[clusters_ids_interested[cid]]
-        data_to_store[cid + 1]['num_d'] = d_in_this_cluster.shape[0]
-        data_to_store[cid + 1]['mean_d'] = np.mean(d_in_this_cluster)
-        data_to_store[cid + 1]['std_d'] = np.std(d_in_this_cluster)
-        data_to_store[cid + 1]['entropy_d'] = -np.sum(pD * np.log2(pD))
-    print(data_to_store)
 
 def plot_gc_content_percentage_in_each_K_class(wrting_data=False):
     CG_CONTENT_LABELS = ["LCG < 30%", "ICG 30%-60%", "HCG > 60%"]
@@ -820,8 +775,8 @@ def plot_ChrMM():
     plt.savefig(os.path.join(fig_dir, "ChromHMM_Rep" + str(repli) + "_DIST_ChroMM.png"), dpi=200)
 
 if __name__ == "__main__":
-    data_fp = '/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/FEATURE_ANALYSIS/CLUSTER_OF_Ks/1/chr1.csv'
-    # cluster_k_by_distance(data_fp)
+    pass
+    # prepare_cluster_data()
     # plot_5_classes_of_K_by_histogram()
     # plot_K_in_promoter_or_CGI_context()
     # extract_promoter(os.path.join(DATA_SET_DIR, "CG_Analysis", "Promoter_bk.bed"), os.path.join(DATA_SET_DIR, "CG_Analysis", "Promoter.bed"))
@@ -829,7 +784,7 @@ if __name__ == "__main__":
     # REGION = "Histone_Modification"
     # plot_K_hist_in_different_markers(os.path.join(GENOMIC_FEATURES_DIR, REGION, "K_intersected"), REGION)
     # barplot_of_Histone_Modification_for_each_k_categories()
-    plot_ChrMM()
-    regions = ["General", "Genomic_Regions", "Histone_Modification", "TFBS", "Histone_Modification_Enzyme"]  #
-    for REGION in regions:
-        plot_K_hist_in_different_markers(os.path.join(GENOMIC_FEATURES_DIR, REGION, intersected_dir_name), REGION)
+    # plot_ChrMM()
+    # regions = ["General", "Genomic_Regions", "Histone_Modification", "TFBS", "Histone_Modification_Enzyme"]  #
+    # for REGION in regions:
+    #     plot_K_hist_in_different_markers(os.path.join(GENOMIC_FEATURES_DIR, REGION, intersected_dir_name), REGION)

@@ -1,0 +1,214 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 12.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[      8486,        206]
+NotebookOptionsPosition[      7970,        189]
+NotebookOutlinePosition[      8309,        204]
+CellTagsIndexPosition[      8266,        201]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"ClearAll", "[", "\"\<Global`*\>\"", "]"}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{"Manipulate", "[", "\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{"Plot", "[", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{
+       RowBox[{"f", "*", 
+        RowBox[{"(", 
+         RowBox[{"1", "-", 
+          RowBox[{"Exp", "[", 
+           RowBox[{
+            RowBox[{"-", "k"}], "*", 
+            RowBox[{"Mod", "[", 
+             RowBox[{"t", ",", "ccd"}], "]"}]}], "]"}]}], ")"}]}], ",", "f"}],
+       "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"t", ",", "0", ",", "T"}], "}"}], ",", 
+     RowBox[{"PlotRange", "\[Rule]", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"f", "-", "0.2"}], ",", 
+        RowBox[{"f", "+", "0.05"}]}], "}"}]}], ",", 
+     RowBox[{"Exclusions", "\[Rule]", "None"}]}], "]"}], ",", 
+   "\[IndentingNewLine]", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{
+      "ccd", ",", " ", "16", ",", 
+       "\"\<Cell Cycle duration of human ESC\>\""}], "}"}], ",", " ", "6", 
+     ",", " ", "24", ",", "2", ",", 
+     RowBox[{"Appearance", "\[Rule]", " ", "\"\<Labeled\>\""}]}], "}"}], ",", 
+   "\[IndentingNewLine]", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"k", ",", " ", "1", ",", "\"\<Remethylation Rates\>\""}], "}"}],
+      ",", " ", "0.01", ",", " ", "10", ",", "0.05", ",", 
+     RowBox[{"Appearance", "\[Rule]", " ", "\"\<Labeled\>\""}]}], "}"}], ",", 
+   "\[IndentingNewLine]", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"f", ",", " ", "1", ",", "\"\<Max methylation level\>\""}], 
+      "}"}], ",", " ", "0.1", ",", " ", "1", ",", "0.1", ",", 
+     RowBox[{"Appearance", "\[Rule]", " ", "\"\<Labeled\>\""}]}], "}"}], ",", 
+   "\[IndentingNewLine]", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"T", ",", " ", "17", ",", "\"\<Total Time\>\""}], "}"}], ",", 
+     " ", "10", ",", " ", "100", ",", "20", ",", 
+     RowBox[{"Appearance", "\[Rule]", " ", "\"\<Labeled\>\""}]}], "}"}]}], 
+  "\[IndentingNewLine]", "]"}]}], "Input",
+ CellChangeTimes->{{3.772829732037747*^9, 3.7728297340795527`*^9}, 
+   3.7728299170470657`*^9, {3.772830110120266*^9, 3.7728302867793016`*^9}, {
+   3.772830382135816*^9, 3.772830385743938*^9}, {3.772830501518146*^9, 
+   3.772830570400812*^9}, {3.772830633512247*^9, 3.772830679198988*^9}, 
+   3.7728307634689617`*^9, {3.7728308030843697`*^9, 3.772830816338769*^9}, {
+   3.772830944845838*^9, 3.772830954124463*^9}, {3.772830989972687*^9, 
+   3.772830999115713*^9}, {3.772831044315085*^9, 3.7728310870161133`*^9}, {
+   3.772831128368847*^9, 3.772831257466333*^9}, {3.7728314222742767`*^9, 
+   3.772831451620304*^9}, {3.772831492908182*^9, 3.772831506746167*^9}, 
+   3.773268046148327*^9},
+ CellLabel->"In[3]:=",ExpressionUUID->"e4dafd1a-637e-4868-b80a-ddb3f3ebfdac"],
+
+Cell[BoxData[
+ TagBox[
+  StyleBox[
+   DynamicModuleBox[{$CellContext`ccd$$ = 16, $CellContext`f$$ = 
+    1, $CellContext`k$$ = 0.51, $CellContext`T$$ = 17, Typeset`show$$ = True, 
+    Typeset`bookmarkList$$ = {}, Typeset`bookmarkMode$$ = "Menu", 
+    Typeset`animator$$, Typeset`animvar$$ = 1, Typeset`name$$ = 
+    "\"untitled\"", Typeset`specs$$ = {{{
+       Hold[$CellContext`ccd$$], 16, "Cell Cycle duration of human ESC"}, 6, 
+      24, 2}, {{
+       Hold[$CellContext`k$$], 1, "Remethylation Rates"}, 0.01, 10, 0.05}, {{
+       Hold[$CellContext`f$$], 1, "Max methylation level"}, 0.1, 1, 0.1}, {{
+       Hold[$CellContext`T$$], 17, "Total Time"}, 10, 100, 20}}, 
+    Typeset`size$$ = {360., {116., 120.}}, Typeset`update$$ = 0, 
+    Typeset`initDone$$, Typeset`skipInitDone$$ = 
+    True, $CellContext`ccd$3251$$ = 0, $CellContext`k$3252$$ = 
+    0, $CellContext`f$3253$$ = 0, $CellContext`T$3254$$ = 0}, 
+    DynamicBox[Manipulate`ManipulateBoxes[
+     1, StandardForm, 
+      "Variables" :> {$CellContext`ccd$$ = 16, $CellContext`f$$ = 
+        1, $CellContext`k$$ = 1, $CellContext`T$$ = 17}, 
+      "ControllerVariables" :> {
+        Hold[$CellContext`ccd$$, $CellContext`ccd$3251$$, 0], 
+        Hold[$CellContext`k$$, $CellContext`k$3252$$, 0], 
+        Hold[$CellContext`f$$, $CellContext`f$3253$$, 0], 
+        Hold[$CellContext`T$$, $CellContext`T$3254$$, 0]}, 
+      "OtherVariables" :> {
+       Typeset`show$$, Typeset`bookmarkList$$, Typeset`bookmarkMode$$, 
+        Typeset`animator$$, Typeset`animvar$$, Typeset`name$$, 
+        Typeset`specs$$, Typeset`size$$, Typeset`update$$, Typeset`initDone$$,
+         Typeset`skipInitDone$$}, "Body" :> 
+      Plot[{$CellContext`f$$ (1 - 
+          Exp[(-$CellContext`k$$) 
+           Mod[$CellContext`t, $CellContext`ccd$$]]), $CellContext`f$$}, \
+{$CellContext`t, 0, $CellContext`T$$}, 
+        PlotRange -> {$CellContext`f$$ - 0.2, $CellContext`f$$ + 0.05}, 
+        Exclusions -> None], 
+      "Specifications" :> {{{$CellContext`ccd$$, 16, 
+          "Cell Cycle duration of human ESC"}, 6, 24, 2, Appearance -> 
+         "Labeled"}, {{$CellContext`k$$, 1, "Remethylation Rates"}, 0.01, 10, 
+         0.05, Appearance -> 
+         "Labeled"}, {{$CellContext`f$$, 1, "Max methylation level"}, 0.1, 1, 
+         0.1, Appearance -> "Labeled"}, {{$CellContext`T$$, 17, "Total Time"},
+          10, 100, 20, Appearance -> "Labeled"}}, "Options" :> {}, 
+      "DefaultOptions" :> {}],
+     ImageSizeCache->{426., {203., 209.}},
+     SingleEvaluation->True],
+    Deinitialization:>None,
+    DynamicModuleValues:>{},
+    SynchronousInitialization->True,
+    UndoTrackedVariables:>{Typeset`show$$, Typeset`bookmarkMode$$},
+    UnsavedVariables:>{Typeset`initDone$$},
+    UntrackedVariables:>{Typeset`size$$}], "Manipulate",
+   Deployed->True,
+   StripOnInput->False],
+  Manipulate`InterpretManipulate[1]]], "Output",
+ CellChangeTimes->{{3.7728305714309483`*^9, 3.772830593227977*^9}, 
+   3.772830634581169*^9, 3.772830774644002*^9, {3.772830807153463*^9, 
+   3.772830817039277*^9}, 3.7728309619708967`*^9, 3.772831001162531*^9, {
+   3.77283104053516*^9, 3.7728310876055603`*^9}, {3.7728311289550447`*^9, 
+   3.7728312040897007`*^9}, {3.772831235441408*^9, 3.7728312578559427`*^9}, 
+   3.7728314528270693`*^9, {3.7728314966267643`*^9, 3.772831514880924*^9}, 
+   3.772890769531933*^9, {3.773268039320068*^9, 3.773268046971306*^9}},
+ CellLabel->"Out[4]=",ExpressionUUID->"46a820d8-abce-4e36-9835-29713667fdb9"]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"{", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{"k", ",", "10", ",", "\"\<Remethylation Rates\>\""}], "}"}], ",", 
+    RowBox[{"10", "^", 
+     RowBox[{"(", 
+      RowBox[{"-", "3"}], ")"}]}], ",", "100", ",", 
+    RowBox[{"10", "^", "0.5"}], ",", 
+    RowBox[{
+     RowBox[{"Row", "[", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"Slider", "[", 
+         RowBox[{
+          RowBox[{"Dynamic", "[", 
+           RowBox[{
+            RowBox[{"Log", "[", "#", "]"}], ",", 
+            RowBox[{
+             RowBox[{"(", 
+              RowBox[{"k", "=", 
+               RowBox[{"10", "^", "#"}]}], ")"}], "&"}]}], "]"}], ",", 
+          RowBox[{"Log10", "[", "#2", "]"}]}], "]"}], ",", "\"\< \>\"", ",", 
+        RowBox[{"InputField", "[", 
+         RowBox[{"#", ",", 
+          RowBox[{"Appearance", "\[Rule]", "\"\<Frameless\>\""}], ",", 
+          RowBox[{"BaseStyle", "\[Rule]", "\"\<Label\>\""}]}], "]"}]}], "}"}],
+       "]"}], "&"}]}], "}"}], ","}]], "Input",ExpressionUUID->"6c672095-6fa7-\
+40bb-944d-3eb7e29b7f3d"]
+},
+WindowSize->{Full, Full},
+WindowMargins->{{4, Automatic}, {Automatic, 252}},
+FrontEndVersion->"12.0 for Mac OS X x86 (64-bit) (April 8, 2019)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 2840, 68, 178, "Input",ExpressionUUID->"e4dafd1a-637e-4868-b80a-ddb3f3ebfdac"],
+Cell[3423, 92, 3465, 63, 431, "Output",ExpressionUUID->"46a820d8-abce-4e36-9835-29713667fdb9"]
+}, Open  ]],
+Cell[6903, 158, 1063, 29, 30, "Input",ExpressionUUID->"6c672095-6fa7-40bb-944d-3eb7e29b7f3d"]
+}
+]
+*)
+

@@ -410,14 +410,40 @@ do
 	awk 'BEGIN {FS="\t"; OFS=","} {print $1"\t"$2"\t"$3"\t"$4*100.0}' $f | gsort -k 1,1 -k2,2n --parallel=8  -S 50%>$f".percent"
 done
 
-OLD_DIR=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/Genomic_Features
-cd $OLD_DIR
 
-for dir_name in *;
+#Prepare files for corrlation and distance analysis in specific regions
+GENOMIC_FEATURES=/Users/emmanueldollinger/PycharmProjects/prediction_by_k/DATA/Genomic_Features
+declare -a MARKERS=('General') #) 'TFBS'  'Genomic_Regions' 'Histone_Modification' 'Histone_Modification_Enzyme' 'ADDED'
+#declare -a MARKERS=('ChrmoHMM')
+declare -a K_OR_METHY=('K_intersected')  #'Methy_intersected'
+ChromoHMM=0
+for region in "${MARKERS[@]}"; #
 do
-	echo $dir_name
-	dist=
-	mkdir -p
+	for km in "${K_OR_METHY[@]}"; #
+	do
+		WORK_DIR=$GENOMIC_FEATURES/$region/$km
+		OUT_DIR=$GENOMIC_FEATURES/$region/$km"_extracted"
+		mkdir -p $OUT_DIR
+		cd $WORK_DIR
+		for f in *.csv;
+		do
+			filename=${f%%.*}
+		  	echo $filename
+		  	f2=$OUT_DIR/$f
+			if [ $ChromoHMM -eq 1 ]
+			then
+				for HMM_i in $(seq 15);
+				do
+					f2=$OUT_DIR/$filename"_"$HMM_i".csv"
+					awk -v HMM=$HMM_i -F "\t" '{ if($4 == HMM) { print} }' $f > $f2
+				done
+			else
+				awk  -F "\t" '{ if($4 == 1) { print} }' $f > $f2
+			fi
+		done
+	done
 done
+
+
 
 
